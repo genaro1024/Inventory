@@ -1,6 +1,6 @@
 # Arquitectura prevista
 
-Diseño técnico acordado. La base de Spring Boot, el dominio, H2/JPA y las operaciones de registro, reabastecimiento y disponibilidad están implementados. Reservas, confirmaciones y notificaciones siguen pendientes. Las reglas están en [BUSINESS_RULES.md](BUSINESS_RULES.md), las decisiones y limitaciones en [DECISIONS.md](DECISIONS.md), y el avance en [TASKS.md](TASKS.md).
+Diseño técnico acordado. La base de Spring Boot, el dominio, H2/JPA y las operaciones de registro, reabastecimiento, disponibilidad y reserva están implementados. Confirmaciones y notificaciones siguen pendientes. Las reglas están en [BUSINESS_RULES.md](BUSINESS_RULES.md), las decisiones y limitaciones en [DECISIONS.md](DECISIONS.md), y el avance en [TASKS.md](TASKS.md).
 
 ## Organización
 
@@ -41,10 +41,14 @@ Los paquetes de las capas se documentan con `package-info.java`. Maven utiliza S
 - Los adaptadores `JpaProductInventoryRepository` y `JpaReservationRepository` guardan datos mediante entidades JPA separadas del dominio, en las tablas `product_inventory` y `reservations`. Las claves primarias protegen SKU y pedidos duplicados; las reservas referencian un producto y tienen un índice por SKU. Las fechas conservan precisión de nanosegundos.
 - Las inserciones y actualizaciones usan transacciones. La inserción no sobrescribe identificadores existentes y la actualización exige que el valor esperado siga vigente. Cada operación crea y cierra su propio `EntityManager`.
 - Las reservas confirmadas y vencidas se conservan como registros de pedidos; no se duplica esa información en otro almacén. Las consultas por SKU devuelven listas inmutables.
-- `Inventory.create(...)` crea una H2 aislada mediante `H2InventoryDatabase`, sin contexto Spring. La implementación del servicio es `AutoCloseable` para liberar la base y el pool; dispone de limpieza de respaldo al ser recolectada. El registro crea productos sin stock y rechaza duplicados; el reabastecimiento actualiza el stock mediante comparación del estado esperado y reintenta si otra operación lo cambió. La disponibilidad considera las reservas activas. Reservar y confirmar siguen pendientes de las tareas 5 y 6.
+- `Inventory.create(...)` crea una H2 aislada mediante `H2InventoryDatabase`, sin contexto Spring. La implementación del servicio es `AutoCloseable` para liberar la base y el pool; dispone de limpieza de respaldo al ser recolectada. El registro crea productos sin stock y rechaza duplicados; el reabastecimiento actualiza el stock mediante comparación del estado esperado y reintenta si otra operación lo cambió. La disponibilidad considera las reservas activas. Confirmar sigue pendiente de la tarea 6.
 - Spring configura su `DataSource` y `EntityManagerFactory` y conecta los mismos adaptadores mediante `PersistenceConfiguration`. `DB_URL`, `DB_USERNAME` y `DB_PASSWORD` permiten configurar la conexión. El dominio conserva el enum de categorías acordado.
 
 Las transacciones actuales son por operación de repositorio; no garantizan atomicidad entre stock y reservas ni una instantánea conjunta de disponibilidad. La coordinación completa y los límites transaccionales de los casos de uso corresponden a la tarea 7.
+
+La reserva valida datos y política, comprueba disponibilidad y guarda el pedido en H2 sin descontar unidades vendidas. Repetir un pedido activo o confirmado devuelve su respuesta original; cambiar sus datos o reenviar uno vencido se rechaza. Los rechazos por stock insuficiente no crean registros. El adaptador traduce las infracciones de límites a `OrderLimitExceededException` y la falta de stock a `InsufficientStockException`.
+
+Las nuevas reservas de un mismo SKU se coordinan dentro de la instancia del servicio para proteger la comprobación y la inserción. La clave primaria de H2 protege pedidos que compiten entre SKU distintos. Esta protección inicial no sustituye la coordinación de confirmación, reabastecimiento y disponibilidad ni las transacciones completas previstas en la tarea 7.
 
 H2 mantiene sus datos mientras la base está activa y los pierde al cerrar o reiniciar. Para esta etapa usamos creación y eliminación automática del esquema; una base persistente requerirá migraciones y pruebas con su dialecto, no solo cambiar la URL.
 
@@ -56,7 +60,7 @@ Requiere JDK 21 y Maven 3.6.3 o posterior; `JAVA_HOME` debe apuntar al JDK.
 - `mvn "-Dtest=com.store.inventory.domain.*Test" test`: ejecuta las pruebas del dominio sin arrancar Spring ni esperar tiempo real.
 - `mvn "-Dtest=com.store.inventory.infrastructure.jpa.*Test,InventoryApplicationServiceTest,InventoryFactoryTest" test`: verifica los adaptadores con H2 real, la disponibilidad y la fábrica.
 - `mvn spring-boot:run`: inicia la aplicación base; todavía no expone los endpoints de inventario.
-- `mvn test`: ejecuta todos los tests. Los tres originales aún fallan al intentar reservar, pendiente de la tarea 5; el flujo de confirmación requiere también la tarea 6.
+- `mvn test`: ejecuta todos los tests. Los dos tests originales de reserva ya pasan; el de confirmación sigue pendiente de la tarea 6.
 
 La prueba de arranque requiere conexiones locales habilitadas en el entorno de ejecución.
 
