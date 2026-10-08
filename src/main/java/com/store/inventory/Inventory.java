@@ -21,7 +21,7 @@ public final class Inventory {
         Objects.requireNonNull(alertListener, "Alert listener is required");
         var database = new H2InventoryDatabase();
         try {
-            return new InventoryApplicationService(database.inventories(), database.reservations(),
+            return new InventoryApplicationService(database.inventories(), database.reservations(), database.settlements(),
                     clock, alertListener, database::close);
         } catch (RuntimeException failure) {
             database.close();

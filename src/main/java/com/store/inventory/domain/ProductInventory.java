@@ -28,4 +28,14 @@ public record ProductInventory(Product product, int onHand) {
             throw new IllegalArgumentException("Stock exceeds the supported maximum", overflow);
         }
     }
+
+    public ProductInventory sell(int quantity) {
+        if (quantity <= 0) {
+            throw new IllegalArgumentException("Quantity must be positive");
+        }
+        if (quantity > onHand) {
+            throw new IllegalStateException("Sold units exceed on-hand stock");
+        }
+        return new ProductInventory(product, onHand - quantity);
+    }
 }

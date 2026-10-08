@@ -14,6 +14,7 @@ import com.store.inventory.domain.ProductInventory;
 import com.store.inventory.domain.ReservationState;
 import com.store.inventory.domain.repository.ProductInventoryRepository;
 import com.store.inventory.domain.repository.ReservationRepository;
+import com.store.inventory.domain.repository.ReservationSettlementRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.lang.ref.Cleaner;
@@ -23,7 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 /**
- * Application entry point. Confirmation and notification use cases are still pending.
+ * Application entry point. Notification use cases are still pending.
  */
 public final class InventoryApplicationService implements InventoryService, AutoCloseable {
 
@@ -31,21 +32,25 @@ public final class InventoryApplicationService implements InventoryService, Auto
 
     private final ProductInventoryRepository inventories;
     private final ReservationRepository reservations;
+    private final ReservationSettlementRepository settlements;
     private final Clock clock;
     private final StockAlertListener alertListener;
     private final AtomicBoolean closed = new AtomicBoolean();
     private final Cleaner.Cleanable resources;
-    private final ConcurrentMap<String, Object> reservationLocks = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, Object> productLocks = new ConcurrentHashMap<>();
 
     public InventoryApplicationService(ProductInventoryRepository inventories,
-            ReservationRepository reservations, Clock clock, StockAlertListener alertListener) {
-        this(inventories, reservations, clock, alertListener, () -> { });
+            ReservationRepository reservations, ReservationSettlementRepository settlements,
+            Clock clock, StockAlertListener alertListener) {
+        this(inventories, reservations, settlements, clock, alertListener, () -> { });
     }
 
     public InventoryApplicationService(ProductInventoryRepository inventories,
-            ReservationRepository reservations, Clock clock, StockAlertListener alertListener, Runnable releaseResources) {
+            ReservationRepository reservations, ReservationSettlementRepository settlements,
+            Clock clock, StockAlertListener alertListener, Runnable releaseResources) {
         this.inventories = Objects.requireNonNull(inventories, "Inventory repository is required");
         this.reservations = Objects.requireNonNull(reservations, "Reservation repository is required");
+        this.settlements = Objects.requireNonNull(settlements, "Settlement repository is required");
         this.clock = Objects.requireNonNull(clock, "Clock is required");
         this.alertListener = Objects.requireNonNull(alertListener, "Alert listener is required");
         resources = CLEANER.register(this, Objects.requireNonNull(releaseResources, "Resource cleanup is required"));
@@ -71,12 +76,16 @@ public final class InventoryApplicationService implements InventoryService, Auto
         if (quantity <= 0) {
             throw new IllegalArgumentException("Quantity must be positive");
         }
-        while (true) {
-            var current = inventories.findBySku(sku)
-                    .orElseThrow(() -> new IllegalArgumentException("Product is not registered: " + sku));
-            var updated = current.replenish(quantity);
-            if (inventories.replace(current, updated)) {
-                return;
+        synchronized (productLock(sku)) {
+            ensureOpen();
+            expireReservations(sku, clock.instant());
+            while (true) {
+                var current = inventories.findBySku(sku)
+                        .orElseThrow(() -> new IllegalArgumentException("Product is not registered: " + sku));
+                var updated = current.replenish(quantity);
+                if (inventories.replace(current, updated)) {
+                    return;
+                }
             }
         }
     }
@@ -89,10 +98,10 @@ public final class InventoryApplicationService implements InventoryService, Auto
         if (quantity <= 0) {
             throw new IllegalArgumentException("Quantity must be positive");
         }
-        // Protect check-and-insert between reservations in this service instance.
-        synchronized (reservationLocks.computeIfAbsent(sku, key -> new Object())) {
+        synchronized (productLock(sku)) {
             ensureOpen();
             var now = clock.instant();
+            expireReservations(sku, now);
             var existing = reservations.findByOrderId(orderId);
             if (existing.isPresent()) {
                 return reuseReservation(existing.get(), sku, quantity, now);
@@ -122,18 +131,45 @@ public final class InventoryApplicationService implements InventoryService, Auto
     @Override
     public void confirm(String orderId) {
         ensureOpen();
-        throw new UnsupportedOperationException("Confirmation is pending task 6");
+        validateOrderId(orderId);
+        var original = reservations.findByOrderId(orderId)
+                .orElseThrow(() -> new IllegalStateException("Order has no active reservation"));
+        synchronized (productLock(original.sku())) {
+            ensureOpen();
+            while (true) {
+                var now = clock.instant();
+                expireReservations(original.sku(), now);
+                var reservation = reservations.findByOrderId(orderId)
+                        .orElseThrow(() -> new IllegalStateException("Order has no active reservation"));
+                if (reservation.stateAt(now) == ReservationState.CONFIRMED) {
+                    return;
+                }
+                if (reservation.stateAt(now) == ReservationState.EXPIRED) {
+                    throw new IllegalStateException("Order has no active reservation");
+                }
+                var inventory = inventories.findBySku(reservation.sku())
+                        .orElseThrow(() -> new IllegalStateException("Reserved product is missing"));
+                if (settlements.confirm(reservation, inventory, now)) {
+                    return;
+                }
+            }
+        }
     }
 
     @Override
     public int available(String sku) {
         ensureOpen();
         validateSku(sku);
-        var inventory = inventories.findBySku(sku);
-        if (inventory.isEmpty()) {
-            return 0;
+        synchronized (productLock(sku)) {
+            ensureOpen();
+            var inventory = inventories.findBySku(sku);
+            if (inventory.isEmpty()) {
+                return 0;
+            }
+            var now = clock.instant();
+            expireReservations(sku, now);
+            return availableUnits(inventory.get(), now);
         }
-        return availableUnits(inventory.get(), clock.instant());
     }
 
     private int availableUnits(ProductInventory inventory, Instant now) {
@@ -145,6 +181,19 @@ public final class InventoryApplicationService implements InventoryService, Auto
             throw new IllegalStateException("Active reservations exceed on-hand stock for " + inventory.sku());
         }
         return Math.toIntExact(availableUnits);
+    }
+
+    private void expireReservations(String sku, Instant now) {
+        for (var reservation : reservations.findBySku(sku)) {
+            var expired = reservation.expireAt(now);
+            if (expired != reservation) {
+                reservations.replace(reservation, expired);
+            }
+        }
+    }
+
+    private Object productLock(String sku) {
+        return productLocks.computeIfAbsent(sku, key -> new Object());
     }
 
     @Override

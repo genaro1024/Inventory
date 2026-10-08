@@ -53,6 +53,10 @@ public final class H2InventoryDatabase implements AutoCloseable {
         return new JpaReservationRepository(factory);
     }
 
+    public JpaReservationSettlementRepository settlements() {
+        return new JpaReservationSettlementRepository(factory);
+    }
+
     @Override
     public void close() {
         if (!closed.compareAndSet(false, true)) {

@@ -7,6 +7,7 @@ import com.store.inventory.domain.Category;
 import com.store.inventory.domain.OrderReservation;
 import com.store.inventory.domain.Product;
 import com.store.inventory.domain.ProductInventory;
+import com.store.inventory.domain.ReservationState;
 import com.store.inventory.infrastructure.jpa.H2InventoryDatabase;
 import com.store.inventory.infrastructure.jpa.JpaProductInventoryRepository;
 import com.store.inventory.infrastructure.jpa.JpaReservationRepository;
@@ -52,14 +53,15 @@ class InventoryApplicationServiceTest {
     }
 
     @Test
-    void exactDeadlineStopsHoldingStockWithoutChangingTheStoredOrder() {
+    void exactDeadlineReleasesStockAndPersistsTheExpiredState() {
         inventories.insert(new ProductInventory(product, 10));
         var reservation = OrderReservation.create("ORDER-1", product, 3, NOW);
         reservations.insert(reservation);
 
         assertThat(serviceAt(reservation.expiresAt().minusNanos(1)).available("SKU-1")).isEqualTo(7);
         assertThat(serviceAt(reservation.expiresAt()).available("SKU-1")).isEqualTo(10);
-        assertThat(reservations.findByOrderId("ORDER-1")).contains(reservation);
+        assertThat(reservations.findByOrderId("ORDER-1")).contains(reservation.expireAt(reservation.expiresAt()));
+        assertThat(reservations.findByOrderId("ORDER-1").orElseThrow().state()).isEqualTo(ReservationState.EXPIRED);
     }
 
     @Test
@@ -69,7 +71,7 @@ class InventoryApplicationServiceTest {
     }
 
     private InventoryApplicationService serviceAt(Instant now) {
-        return new InventoryApplicationService(inventories, reservations,
+        return new InventoryApplicationService(inventories, reservations, database.settlements(),
                 Clock.fixed(now, ZoneOffset.UTC), (sku, available) -> { });
     }
 }

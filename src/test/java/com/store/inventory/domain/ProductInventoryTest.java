@@ -51,4 +51,29 @@ class ProductInventoryTest {
         assertThatIllegalArgumentException().isThrownBy(() -> inventory.replenish(1));
         assertThat(inventory.onHand()).isEqualTo(Integer.MAX_VALUE);
     }
+
+    @Test
+    void sellingUnitsPreservesTheProductAndDoesNotMutateTheOriginal() {
+        var original = new ProductInventory(new Product("SKU-1", Category.STANDARD), 10);
+
+        assertThat(original.sell(3)).isEqualTo(new ProductInventory(original.product(), 7));
+        assertThat(original.onHand()).isEqualTo(10);
+        assertThat(original.sell(10).onHand()).isZero();
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {0, -1})
+    void rejectsInvalidSaleQuantity(int quantity) {
+        var inventory = new ProductInventory(new Product("SKU-1", Category.STANDARD), 10);
+
+        assertThatIllegalArgumentException().isThrownBy(() -> inventory.sell(quantity));
+    }
+
+    @Test
+    void cannotSellMoreUnitsThanTheWarehouseContains() {
+        var inventory = new ProductInventory(new Product("SKU-1", Category.STANDARD), 2);
+
+        org.assertj.core.api.Assertions.assertThatIllegalStateException().isThrownBy(() -> inventory.sell(3));
+        assertThat(inventory.onHand()).isEqualTo(2);
+    }
 }

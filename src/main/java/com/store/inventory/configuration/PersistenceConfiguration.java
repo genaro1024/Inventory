@@ -2,8 +2,10 @@ package com.store.inventory.configuration;
 
 import com.store.inventory.domain.repository.ProductInventoryRepository;
 import com.store.inventory.domain.repository.ReservationRepository;
+import com.store.inventory.domain.repository.ReservationSettlementRepository;
 import com.store.inventory.infrastructure.jpa.JpaProductInventoryRepository;
 import com.store.inventory.infrastructure.jpa.JpaReservationRepository;
+import com.store.inventory.infrastructure.jpa.JpaReservationSettlementRepository;
 import jakarta.persistence.EntityManagerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -19,5 +21,10 @@ public class PersistenceConfiguration {
     @Bean
     ReservationRepository reservationRepository(EntityManagerFactory factory) {
         return new JpaReservationRepository(factory);
+    }
+
+    @Bean
+    ReservationSettlementRepository reservationSettlementRepository(EntityManagerFactory factory) {
+        return new JpaReservationSettlementRepository(factory);
     }
 }
