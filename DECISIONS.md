@@ -1,6 +1,6 @@
 # Decisiones de implementación
 
-Este documento recoge lo acordado para la implementación; por ahora solo se modifica este archivo.
+Este documento recoge lo acordado para la implementación. El avance se registra en [TASKS.md](TASKS.md) y el diseño técnico se describe en [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Decisiones de negocio
 
@@ -81,6 +81,14 @@ Esta decisión reemplaza el uso de Problem Details: no agregaremos `type`, `titl
 Usaremos `400` para entradas inválidas, `409` para conflictos de estado, como stock insuficiente o reservas vencidas, `404` para rutas inexistentes y `500` para errores internos inesperados. Los errores internos tendrán un mensaje genérico; las excepciones, causas, trazas y demás detalles de diagnóstico irán únicamente a logs, asociados al `traceId`.
 
 Las entradas inválidas y el registro duplicado usarán `IllegalArgumentException`; confirmar un pedido desconocido o vencido, `IllegalStateException`. El mapeo HTTP distinguirá la causa, no solo la clase de excepción.
+
+### Pruebas automatizadas
+
+Conservaremos los tests proporcionados y agregaremos pruebas más completas: validaciones, políticas por categoría, disponibilidad, idempotencia, confirmaciones y vencimientos, incluido el instante exacto de expiración. También verificaremos reservas simultáneas y pedidos duplicados para evitar sobreventa.
+
+Probaremos los avisos, su habilitación tras reabastecer, cancelaciones, reintentos con jitter y paso a la DLQ. Usaremos un reloj y un planificador controlables para no depender de esperas reales. Las pruebas REST cubrirán estados HTTP, los cuatro campos del JSON acordado, mensajes aptos para clientes y ausencia de detalles técnicos en las respuestas, incluidos errores de validación, `404` y `500`.
+
+Los tests originales y los nuevos deberán pasar con `mvn test`; el pipeline ejecutará esa verificación antes de construir la imagen.
 
 ### Logs y documentación
 
