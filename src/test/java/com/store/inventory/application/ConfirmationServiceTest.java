@@ -217,6 +217,6 @@ class ConfirmationServiceTest {
 
     private InventoryApplicationService serviceAt(Instant now) {
         return new InventoryApplicationService(database.inventories(), database.reservations(), database.settlements(),
-                Clock.fixed(now, ZoneOffset.UTC), (sku, available) -> { });
+                database.operations(), Clock.fixed(now, ZoneOffset.UTC), (sku, available) -> { });
     }
 }

@@ -2,7 +2,6 @@ package com.store.inventory.infrastructure.jpa;
 
 import com.store.inventory.domain.OrderReservation;
 import com.store.inventory.domain.repository.ReservationRepository;
-import jakarta.persistence.EntityManagerFactory;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -11,8 +10,8 @@ public final class JpaReservationRepository implements ReservationRepository {
 
     private final JpaTransactions transactions;
 
-    public JpaReservationRepository(EntityManagerFactory factory) {
-        transactions = new JpaTransactions(factory);
+    JpaReservationRepository(JpaTransactions transactions) {
+        this.transactions = transactions;
     }
 
     @Override

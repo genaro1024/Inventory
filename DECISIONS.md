@@ -48,7 +48,7 @@ Las categorías usarán una tabla de políticas. Agregar categorías nuevas requ
 
 Usaremos el `Clock` recibido y procesaremos vencimientos al consultar disponibilidad o modificar el inventario, sin tarea periódica. La limpieza puede esperar a la siguiente operación, pero una reserva vencida no contará como activa.
 
-Las operaciones serán atómicas por producto y protegeremos también la unicidad de `orderId`. Las notificaciones se ejecutarán fuera de los bloqueos. Esta coordinación cubre una sola instancia.
+Las operaciones serán atómicas por producto mediante transacciones y bloqueos de fila, y la clave primaria protegerá la unicidad de `orderId`. Los servicios que compartan una base usarán la misma coordinación; H2 en memoria sigue siendo local al proceso. Las notificaciones se ejecutarán después de completar la transacción y liberar los bloqueos.
 
 ### Almacenamiento y seed
 

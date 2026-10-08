@@ -22,7 +22,7 @@ public final class Inventory {
         var database = new H2InventoryDatabase();
         try {
             return new InventoryApplicationService(database.inventories(), database.reservations(), database.settlements(),
-                    clock, alertListener, database::close);
+                    database.operations(), clock, alertListener, database::close);
         } catch (RuntimeException failure) {
             database.close();
             throw failure;

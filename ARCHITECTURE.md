@@ -39,18 +39,21 @@ Los paquetes de las capas se documentan con `package-info.java`. Maven utiliza S
 
 - `ProductInventoryRepository` y `ReservationRepository` definen el acceso al almacenamiento sin depender de Spring.
 - Los adaptadores `JpaProductInventoryRepository` y `JpaReservationRepository` guardan datos mediante entidades JPA separadas del dominio, en las tablas `product_inventory` y `reservations`. Las claves primarias protegen SKU y pedidos duplicados; las reservas referencian un producto y tienen un índice por SKU. Las fechas conservan precisión de nanosegundos.
-- Las inserciones y actualizaciones usan transacciones. La inserción no sobrescribe identificadores existentes y la actualización exige que el valor esperado siga vigente. Cada operación crea y cierra su propio `EntityManager`.
+- Las inserciones y actualizaciones usan transacciones. La inserción no sobrescribe identificadores existentes y la actualización exige que el valor esperado siga vigente.
+- `JpaInventoryPersistence` conecta todos los adaptadores y el ejecutor de operaciones a un contexto transaccional compartido. Dentro de un caso de uso, las lecturas y escrituras reutilizan el mismo `EntityManager`; fuera de él, los repositorios conservan sus transacciones independientes.
 - Las reservas confirmadas y vencidas se conservan como registros de pedidos; no se duplica esa información en otro almacén. Las consultas por SKU devuelven listas inmutables.
 - `Inventory.create(...)` crea una H2 aislada mediante `H2InventoryDatabase`, sin contexto Spring. La implementación del servicio es `AutoCloseable` para liberar la base y el pool; dispone de limpieza de respaldo al ser recolectada. El registro crea productos sin stock y rechaza duplicados; el reabastecimiento actualiza el stock mediante comparación del estado esperado y reintenta si otra operación lo cambió. La disponibilidad considera las reservas activas.
 - Spring configura su `DataSource` y `EntityManagerFactory` y conecta los mismos adaptadores mediante `PersistenceConfiguration`. `DB_URL`, `DB_USERNAME` y `DB_PASSWORD` permiten configurar la conexión. El dominio conserva el enum de categorías acordado.
 
-Los repositorios básicos usan transacciones por operación. La confirmación usa `ReservationSettlementRepository`, implementado por `JpaReservationSettlementRepository`, para guardar el estado confirmado y descontar el stock en una sola transacción. Si alguno de los estados esperados cambió, no se guarda ninguna parte de la venta y el servicio vuelve a evaluar el pedido. Confirmar nuevamente un pedido ya confirmado no realiza otra venta.
+`InventoryOperationExecutor`, implementado por `JpaInventoryOperationExecutor`, abre una transacción y obtiene un bloqueo `PESSIMISTIC_WRITE` sobre el producto antes de ejecutar reserva, confirmación, reabastecimiento o disponibilidad. Todos sus accesos a repositorios comparten esa transacción. Esto protege también los servicios con contextos independientes que utilicen la misma base, sin bloquear productos diferentes.
+
+La confirmación usa `ReservationSettlementRepository`, implementado por `JpaReservationSettlementRepository`, para guardar el estado confirmado y descontar el stock juntos. Los fallos técnicos revierten la operación completa. Los conflictos de inserción y liquidación reintentan toda la transacción hasta tres intentos, con estado fresco. Los rechazos esperados del negocio conservan la limpieza de vencimientos, sin crear una reserva ni una venta.
 
 Los vencimientos se procesan al consultar disponibilidad, reabastecer, reservar o confirmar. Se guarda el estado vencido sin descontar unidades, conservando el registro del pedido para reconocer reintentos. Las reservas confirmadas no vencen.
 
 La reserva valida datos y política, comprueba disponibilidad y guarda el pedido en H2 sin descontar unidades vendidas. Repetir un pedido activo o confirmado devuelve su respuesta original; cambiar sus datos o reenviar uno vencido se rechaza. Los rechazos por stock insuficiente no crean registros. El adaptador traduce las infracciones de límites a `OrderLimitExceededException` y la falta de stock a `InsufficientStockException`.
 
-Reserva, confirmación, reabastecimiento y disponibilidad comparten coordinación por SKU dentro de una instancia del servicio. La clave primaria de H2 protege pedidos que compiten entre SKU distintos. La revisión completa de concurrencia y de las lecturas y reservas entre objetos de servicio que compartan una base corresponde a la tarea 7; la disponibilidad todavía no ofrece una instantánea transaccional entre repositorios.
+La clave primaria de H2 protege pedidos que compiten entre SKU distintos; ante una colisión, se revierte la transacción y se vuelve a consultar el pedido ganador. Las lecturas de disponibilidad usan el mismo bloqueo y transacción que las escrituras. El cierre del servicio espera a que terminen sus operaciones en curso antes de liberar recursos.
 
 H2 mantiene sus datos mientras la base está activa y los pierde al cerrar o reiniciar. Para esta etapa usamos creación y eliminación automática del esquema; una base persistente requerirá migraciones y pruebas con su dialecto, no solo cambiar la URL.
 
@@ -81,11 +84,11 @@ La prueba de arranque requiere conexiones locales habilitadas en el entorno de e
 - Las reservas tendrán estados activa, confirmada y vencida. Se conservará la información necesaria para reconocer reintentos.
 - Los vencimientos se evaluarán con el `Clock` recibido al consultar disponibilidad o modificar inventario. No habrá una tarea periódica de expiración.
 
-Esta coordinación será local a una instancia. Antes de usar varias réplicas se necesitarán almacenamiento compartido, atomicidad y unicidad de pedidos entre instancias.
+La coordinación se aplica a quienes compartan una base y ejecuten los casos de uso mediante el servicio. H2 en memoria no comparte datos entre procesos; antes de usar varias réplicas se necesitará una base persistente compartida y pruebas en el motor elegido.
 
 ## Notificaciones
 
-Las operaciones de inventario determinarán cuándo corresponde un aviso. Su entrega ocurrirá fuera de los bloqueos mediante el listener proporcionado; no integraremos directamente un proveedor de correo.
+Las operaciones de inventario determinarán cuándo corresponde un aviso. Su entrega ocurrirá después de terminar la transacción y liberar los bloqueos mediante el listener proporcionado; los callbacks transaccionales solo podrán realizar trabajo de persistencia. La implementación de avisos sigue pendiente de las tareas 8 a 10; no integraremos directamente un proveedor de correo.
 
 - Después del intento inicial, hasta cinco reintentos en segundo plano: 2, 4, 8, 16 y 32 segundos, con jitter de ±20 %.
 - Un aviso pendiente no generará entregas adicionales por operaciones posteriores. Una entrega exitosa cancelará los reintentos restantes.

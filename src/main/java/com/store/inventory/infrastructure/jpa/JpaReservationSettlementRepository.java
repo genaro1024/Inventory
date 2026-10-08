@@ -4,7 +4,6 @@ import com.store.inventory.domain.OrderReservation;
 import com.store.inventory.domain.ProductInventory;
 import com.store.inventory.domain.ReservationState;
 import com.store.inventory.domain.repository.ReservationSettlementRepository;
-import jakarta.persistence.EntityManagerFactory;
 import java.time.Instant;
 import java.util.Objects;
 
@@ -12,8 +11,8 @@ public final class JpaReservationSettlementRepository implements ReservationSett
 
     private final JpaTransactions transactions;
 
-    public JpaReservationSettlementRepository(EntityManagerFactory factory) {
-        transactions = new JpaTransactions(factory);
+    JpaReservationSettlementRepository(JpaTransactions transactions) {
+        this.transactions = transactions;
     }
 
     @Override
@@ -56,6 +55,9 @@ public final class JpaReservationSettlementRepository implements ReservationSett
                 return true;
             });
         } catch (StockChangedException conflict) {
+            if (transactions.isParticipating()) {
+                throw new RetryOperationException(conflict);
+            }
             return false;
         }
     }

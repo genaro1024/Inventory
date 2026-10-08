@@ -2,7 +2,6 @@ package com.store.inventory.infrastructure.jpa;
 
 import com.store.inventory.domain.ProductInventory;
 import com.store.inventory.domain.repository.ProductInventoryRepository;
-import jakarta.persistence.EntityManagerFactory;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -10,8 +9,8 @@ public final class JpaProductInventoryRepository implements ProductInventoryRepo
 
     private final JpaTransactions transactions;
 
-    public JpaProductInventoryRepository(EntityManagerFactory factory) {
-        transactions = new JpaTransactions(factory);
+    JpaProductInventoryRepository(JpaTransactions transactions) {
+        this.transactions = transactions;
     }
 
     @Override

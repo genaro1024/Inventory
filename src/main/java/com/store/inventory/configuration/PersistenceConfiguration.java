@@ -3,9 +3,8 @@ package com.store.inventory.configuration;
 import com.store.inventory.domain.repository.ProductInventoryRepository;
 import com.store.inventory.domain.repository.ReservationRepository;
 import com.store.inventory.domain.repository.ReservationSettlementRepository;
-import com.store.inventory.infrastructure.jpa.JpaProductInventoryRepository;
-import com.store.inventory.infrastructure.jpa.JpaReservationRepository;
-import com.store.inventory.infrastructure.jpa.JpaReservationSettlementRepository;
+import com.store.inventory.infrastructure.jpa.JpaInventoryPersistence;
+import com.store.inventory.application.InventoryOperationExecutor;
 import jakarta.persistence.EntityManagerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -14,17 +13,27 @@ import org.springframework.context.annotation.Configuration;
 public class PersistenceConfiguration {
 
     @Bean
-    ProductInventoryRepository productInventoryRepository(EntityManagerFactory factory) {
-        return new JpaProductInventoryRepository(factory);
+    JpaInventoryPersistence inventoryPersistence(EntityManagerFactory factory) {
+        return new JpaInventoryPersistence(factory);
     }
 
     @Bean
-    ReservationRepository reservationRepository(EntityManagerFactory factory) {
-        return new JpaReservationRepository(factory);
+    ProductInventoryRepository productInventoryRepository(JpaInventoryPersistence persistence) {
+        return persistence.inventories();
     }
 
     @Bean
-    ReservationSettlementRepository reservationSettlementRepository(EntityManagerFactory factory) {
-        return new JpaReservationSettlementRepository(factory);
+    ReservationRepository reservationRepository(JpaInventoryPersistence persistence) {
+        return persistence.reservations();
+    }
+
+    @Bean
+    ReservationSettlementRepository reservationSettlementRepository(JpaInventoryPersistence persistence) {
+        return persistence.settlements();
+    }
+
+    @Bean
+    InventoryOperationExecutor inventoryOperationExecutor(JpaInventoryPersistence persistence) {
+        return persistence.operations();
     }
 }

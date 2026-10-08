@@ -10,7 +10,7 @@ Checklist basada en [DECISIONS.md](DECISIONS.md). Las tareas completadas se marc
 - [x] **4. Implementar productos y stock.** Registro, reabastecimiento, disponibilidad y validaciones; rechazar SKU duplicados e identificadores inválidos y respetar las excepciones del contrato.
 - [x] **5. Implementar reservas e idempotencia.** Aplicar límites y disponibilidad, devolver reservas originales ante reintentos y rechazar cambios de datos. Los rechazos por falta de stock no consumirán el identificador.
 - [x] **6. Implementar confirmaciones y vencimientos.** Usar `Clock`, liberar reservas vencidas durante las operaciones y cubrir el instante exacto de expiración. Confirmar repetidamente no volverá a descontar unidades; una reserva vencida no se reactivará.
-- [ ] **7. Proteger la concurrencia.** Garantizar operaciones atómicas por producto y unicidad de pedidos, incluso entre solicitudes de distintos productos. Entregar notificaciones fuera de los bloqueos.
+- [x] **7. Proteger la concurrencia.** Garantizar operaciones atómicas por producto y unicidad de pedidos, incluso entre solicitudes de distintos productos. Mantener la entrega de las futuras notificaciones fuera de los bloqueos y transacciones.
 
 ## Notificaciones
 

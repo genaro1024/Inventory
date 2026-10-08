@@ -13,6 +13,7 @@ public final class H2InventoryDatabase implements AutoCloseable {
 
     private final HikariDataSource dataSource;
     private final EntityManagerFactory factory;
+    private final JpaInventoryPersistence persistence;
     private final AtomicBoolean closed = new AtomicBoolean();
 
     public H2InventoryDatabase() {
@@ -25,6 +26,7 @@ public final class H2InventoryDatabase implements AutoCloseable {
         dataSource = new HikariDataSource(config);
         try {
             factory = buildFactory();
+            persistence = new JpaInventoryPersistence(factory);
         } catch (RuntimeException failure) {
             releaseDataSource();
             throw failure;
@@ -46,15 +48,19 @@ public final class H2InventoryDatabase implements AutoCloseable {
     }
 
     public JpaProductInventoryRepository inventories() {
-        return new JpaProductInventoryRepository(factory);
+        return persistence.inventories();
     }
 
     public JpaReservationRepository reservations() {
-        return new JpaReservationRepository(factory);
+        return persistence.reservations();
     }
 
     public JpaReservationSettlementRepository settlements() {
-        return new JpaReservationSettlementRepository(factory);
+        return persistence.settlements();
+    }
+
+    public JpaInventoryOperationExecutor operations() {
+        return persistence.operations();
     }
 
     @Override

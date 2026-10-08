@@ -72,6 +72,6 @@ class InventoryApplicationServiceTest {
 
     private InventoryApplicationService serviceAt(Instant now) {
         return new InventoryApplicationService(inventories, reservations, database.settlements(),
-                Clock.fixed(now, ZoneOffset.UTC), (sku, available) -> { });
+                database.operations(), Clock.fixed(now, ZoneOffset.UTC), (sku, available) -> { });
     }
 }

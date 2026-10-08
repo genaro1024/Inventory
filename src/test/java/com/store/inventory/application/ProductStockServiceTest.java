@@ -33,7 +33,7 @@ class ProductStockServiceTest {
     void createService() {
         database = new H2InventoryDatabase();
         service = new InventoryApplicationService(database.inventories(), database.reservations(), database.settlements(),
-                Clock.fixed(NOW, ZoneOffset.UTC), (sku, available) -> { });
+                database.operations(), Clock.fixed(NOW, ZoneOffset.UTC), (sku, available) -> { });
     }
 
     @AfterEach
