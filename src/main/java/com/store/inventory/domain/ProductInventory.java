@@ -17,4 +17,15 @@ public record ProductInventory(Product product, int onHand) {
     public String sku() {
         return product.sku();
     }
+
+    public ProductInventory replenish(int quantity) {
+        if (quantity <= 0) {
+            throw new IllegalArgumentException("Quantity must be positive");
+        }
+        try {
+            return new ProductInventory(product, Math.addExact(onHand, quantity));
+        } catch (ArithmeticException overflow) {
+            throw new IllegalArgumentException("Stock exceeds the supported maximum", overflow);
+        }
+    }
 }

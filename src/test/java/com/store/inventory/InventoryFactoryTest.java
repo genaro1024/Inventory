@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 
 import com.store.inventory.application.InventoryApplicationService;
+import com.store.inventory.api.ProductCategory;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -41,5 +42,21 @@ class InventoryFactoryTest {
         service.close();
 
         assertThatIllegalStateException().isThrownBy(() -> service.available("SKU-1"));
+    }
+
+    @Test
+    void factoryInstancesKeepTheirProductsAndStockIsolated() {
+        try (var first = (InventoryApplicationService) Inventory.create(clock, (sku, available) -> { });
+                var second = (InventoryApplicationService) Inventory.create(clock, (sku, available) -> { })) {
+            first.registerProduct("SKU-1", ProductCategory.STANDARD);
+            first.addStock("SKU-1", 3);
+            assertThat(second.available("SKU-1")).isZero();
+
+            second.registerProduct("SKU-1", ProductCategory.FLASH_SALE);
+            second.addStock("SKU-1", 9);
+
+            assertThat(first.available("SKU-1")).isEqualTo(3);
+            assertThat(second.available("SKU-1")).isEqualTo(9);
+        }
     }
 }

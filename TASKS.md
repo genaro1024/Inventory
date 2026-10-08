@@ -7,7 +7,7 @@ Checklist basada en [DECISIONS.md](DECISIONS.md). Las tareas completadas se marc
 - [x] **1. Preparar Spring Boot y DDD.** Configurar Java 21 y Maven, separar dominio, aplicación e infraestructura y preservar el contrato público y la firma de `Inventory.create(...)`.
 - [x] **2. Modelar el dominio.** Definir productos, reservas, estados y la tabla de políticas de las tres categorías, sin depender de Spring.
 - [x] **3. Implementar almacenamiento en H2 en memoria con JPA.** Guardar productos, stock, reservas y registros de pedidos con entidades separadas del dominio. La fábrica deberá crear una base vacía y aislada sin arrancar Spring.
-- [ ] **4. Implementar productos y stock.** Registro, reabastecimiento, disponibilidad y validaciones; rechazar SKU duplicados e identificadores inválidos y respetar las excepciones del contrato.
+- [x] **4. Implementar productos y stock.** Registro, reabastecimiento, disponibilidad y validaciones; rechazar SKU duplicados e identificadores inválidos y respetar las excepciones del contrato.
 - [ ] **5. Implementar reservas e idempotencia.** Aplicar límites y disponibilidad, devolver reservas originales ante reintentos y rechazar cambios de datos. Los rechazos por falta de stock no consumirán el identificador.
 - [ ] **6. Implementar confirmaciones y vencimientos.** Usar `Clock`, liberar reservas vencidas durante las operaciones y cubrir el instante exacto de expiración. Confirmar repetidamente no volverá a descontar unidades; una reserva vencida no se reactivará.
 - [ ] **7. Proteger la concurrencia.** Garantizar operaciones atómicas por producto y unicidad de pedidos, incluso entre solicitudes de distintos productos. Entregar notificaciones fuera de los bloqueos.

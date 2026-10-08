@@ -4,6 +4,9 @@ import com.store.inventory.api.InventoryService;
 import com.store.inventory.api.ProductCategory;
 import com.store.inventory.api.Reservation;
 import com.store.inventory.api.StockAlertListener;
+import com.store.inventory.domain.Category;
+import com.store.inventory.domain.Product;
+import com.store.inventory.domain.ProductInventory;
 import com.store.inventory.domain.ReservationState;
 import com.store.inventory.domain.repository.ProductInventoryRepository;
 import com.store.inventory.domain.repository.ReservationRepository;
@@ -13,7 +16,7 @@ import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Application entry point. Mutation use cases will be added in the following tasks.
+ * Application entry point. Reservation and confirmation use cases are still pending.
  */
 public final class InventoryApplicationService implements InventoryService, AutoCloseable {
 
@@ -43,13 +46,31 @@ public final class InventoryApplicationService implements InventoryService, Auto
     @Override
     public void registerProduct(String sku, ProductCategory category) {
         ensureOpen();
-        throw new UnsupportedOperationException("Product registration is pending task 4");
+        validateSku(sku);
+        if (category == null) {
+            throw new IllegalArgumentException("Category is required");
+        }
+        var product = new Product(sku, Category.valueOf(category.name()));
+        if (!inventories.insert(new ProductInventory(product, 0))) {
+            throw new IllegalArgumentException("El producto ya existe");
+        }
     }
 
     @Override
     public void addStock(String sku, int quantity) {
         ensureOpen();
-        throw new UnsupportedOperationException("Replenishment is pending task 4");
+        validateSku(sku);
+        if (quantity <= 0) {
+            throw new IllegalArgumentException("Quantity must be positive");
+        }
+        while (true) {
+            var current = inventories.findBySku(sku)
+                    .orElseThrow(() -> new IllegalArgumentException("Product is not registered: " + sku));
+            var updated = current.replenish(quantity);
+            if (inventories.replace(current, updated)) {
+                return;
+            }
+        }
     }
 
     @Override
@@ -67,9 +88,7 @@ public final class InventoryApplicationService implements InventoryService, Auto
     @Override
     public int available(String sku) {
         ensureOpen();
-        if (sku == null || sku.isBlank()) {
-            throw new IllegalArgumentException("SKU must not be blank");
-        }
+        validateSku(sku);
         var inventory = inventories.findBySku(sku);
         if (inventory.isEmpty()) {
             return 0;
@@ -95,6 +114,12 @@ public final class InventoryApplicationService implements InventoryService, Auto
     private void ensureOpen() {
         if (closed.get()) {
             throw new IllegalStateException("Inventory service is closed");
+        }
+    }
+
+    private static void validateSku(String sku) {
+        if (sku == null || sku.isBlank()) {
+            throw new IllegalArgumentException("SKU must not be blank");
         }
     }
 }
