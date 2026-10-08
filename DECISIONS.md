@@ -90,6 +90,18 @@ Usaremos `INFO` para eventos del negocio, `WARN` para fallos recuperables, `ERRO
 
 Durante la implementación crearemos OpenAPI, Swagger UI y una colección de Postman con entorno local, ejemplos, pruebas y guía de uso. Postman generará datos propios y se alineará con la API y su formato de respuestas.
 
+### CI/CD, Docker y Kubernetes
+
+Prepararemos GitHub Actions para ejecutar los tests con Java 21 y Maven y, si pasan, construir la imagen Docker. El flujo quedará listo para publicarla en un registro de contenedores, con etiquetas que identifiquen la versión y el commit. El registro de destino y el despliegue automático se definirán al conocer el entorno.
+
+Incluiremos un Dockerfile con construcción en varias etapas y ejecución como usuario sin privilegios, además de un `.dockerignore`. Prepararemos manifiestos de Kubernetes para el Deployment, Service, configuración, referencias a secretos, recursos y sondas de salud.
+
+Con el almacenamiento actual en memoria, el despliegue de demostración usará una sola réplica y perderá los datos al reiniciar. No habilitaremos múltiples réplicas hasta disponer de almacenamiento compartido y coordinación entre instancias.
+
+Incluiremos un `.env.example` documentado con variables de configuración y valores de ejemplo, sin credenciales reales. Los archivos `.env` locales quedarán fuera de Git; Kubernetes utilizará ConfigMaps y Secrets, y GitHub Actions, sus variables y secretos. Documentaremos cómo cargar las variables localmente, sin asumir que Spring Boot lee un `.env` automáticamente.
+
+Estos archivos y flujos se crearán durante la implementación; por ahora solo queda registrada la decisión.
+
 ### Pendientes antes de producción
 
 - Persistir inventario, pedidos, avisos y DLQ; definir retención de pedidos y reprocesamiento.
