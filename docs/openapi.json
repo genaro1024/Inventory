@@ -1,0 +1,1253 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "API de reservas de inventario",
+    "description": "Reservas temporales, confirmaciones idempotentes y disponibilidad. Todas las respuestas de negocio tienen success, message, data y traceId.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Servidor actual"
+    }
+  ],
+  "paths": {
+    "/reservations": {
+      "post": {
+        "tags": [
+          "Reservas"
+        ],
+        "summary": "Reservar unidades",
+        "description": "Los reintentos conservan la reserva original. No reactiva pedidos vencidos.",
+        "operationId": "reserve",
+        "parameters": [
+          {
+            "name": "X-Trace-Id",
+            "in": "header",
+            "description": "Correlación opcional; si falta o es inválida, el servidor genera un UUID.",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9._-]{1,64}$",
+              "type": "string",
+              "example": "frontend-trace-123"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReserveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Trace-Id": {
+                "description": "Mismo identificador que el traceId del cuerpo.",
+                "schema": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9._-]{1,64}$",
+                  "type": "string",
+                  "example": "frontend-trace-123"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseReservation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Solicitud inválida.",
+            "headers": {
+              "X-Trace-Id": {
+                "description": "Mismo identificador que el traceId del cuerpo.",
+                "schema": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9._-]{1,64}$",
+                  "type": "string",
+                  "example": "frontend-trace-123"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "message": "Revisa los datos de tu solicitud e inténtalo nuevamente.",
+                  "data": null,
+                  "traceId": "frontend-trace-123"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "La API responde en JSON.",
+            "headers": {
+              "X-Trace-Id": {
+                "description": "Mismo identificador que el traceId del cuerpo.",
+                "schema": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9._-]{1,64}$",
+                  "type": "string",
+                  "example": "frontend-trace-123"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "message": "Revisa los datos de tu solicitud e inténtalo nuevamente.",
+                  "data": null,
+                  "traceId": "frontend-trace-123"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto con las reglas o el estado del inventario o pedido.",
+            "headers": {
+              "X-Trace-Id": {
+                "description": "Mismo identificador que el traceId del cuerpo.",
+                "schema": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9._-]{1,64}$",
+                  "type": "string",
+                  "example": "frontend-trace-123"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "message": "No hay suficientes unidades disponibles para tu pedido.",
+                  "data": null,
+                  "traceId": "frontend-trace-123"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "El cuerpo debe usar application/json.",
+            "headers": {
+              "X-Trace-Id": {
+                "description": "Mismo identificador que el traceId del cuerpo.",
+                "schema": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9._-]{1,64}$",
+                  "type": "string",
+                  "example": "frontend-trace-123"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "message": "Revisa los datos de tu solicitud e inténtalo nuevamente.",
+                  "data": null,
+                  "traceId": "frontend-trace-123"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno; los detalles técnicos solo se registran en logs.",
+            "headers": {
+              "X-Trace-Id": {
+                "description": "Mismo identificador que el traceId del cuerpo.",
+                "schema": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9._-]{1,64}$",
+                  "type": "string",
+                  "example": "frontend-trace-123"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "message": "No pudimos completar tu solicitud. Inténtalo nuevamente.",
+                  "data": null,
+                  "traceId": "frontend-trace-123"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reservations/{orderId}/confirm": {
+      "post": {
+        "tags": [
+          "Reservas"
+        ],
+        "summary": "Confirmar un pedido pagado",
+        "description": "Una confirmación repetida no vuelve a descontar unidades.",
+        "operationId": "confirm",
+        "parameters": [
+          {
+            "name": "orderId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Trace-Id",
+            "in": "header",
+            "description": "Correlación opcional; si falta o es inválida, el servidor genera un UUID.",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9._-]{1,64}$",
+              "type": "string",
+              "example": "frontend-trace-123"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Trace-Id": {
+                "description": "Mismo identificador que el traceId del cuerpo.",
+                "schema": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9._-]{1,64}$",
+                  "type": "string",
+                  "example": "frontend-trace-123"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseVoid"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Solicitud inválida.",
+            "headers": {
+              "X-Trace-Id": {
+                "description": "Mismo identificador que el traceId del cuerpo.",
+                "schema": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9._-]{1,64}$",
+                  "type": "string",
+                  "example": "frontend-trace-123"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "message": "Revisa los datos de tu solicitud e inténtalo nuevamente.",
+                  "data": null,
+                  "traceId": "frontend-trace-123"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "La API responde en JSON.",
+            "headers": {
+              "X-Trace-Id": {
+                "description": "Mismo identificador que el traceId del cuerpo.",
+                "schema": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9._-]{1,64}$",
+                  "type": "string",
+                  "example": "frontend-trace-123"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "message": "Revisa los datos de tu solicitud e inténtalo nuevamente.",
+                  "data": null,
+                  "traceId": "frontend-trace-123"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto con las reglas o el estado del inventario o pedido.",
+            "headers": {
+              "X-Trace-Id": {
+                "description": "Mismo identificador que el traceId del cuerpo.",
+                "schema": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9._-]{1,64}$",
+                  "type": "string",
+                  "example": "frontend-trace-123"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "message": "No hay suficientes unidades disponibles para tu pedido.",
+                  "data": null,
+                  "traceId": "frontend-trace-123"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno; los detalles técnicos solo se registran en logs.",
+            "headers": {
+              "X-Trace-Id": {
+                "description": "Mismo identificador que el traceId del cuerpo.",
+                "schema": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9._-]{1,64}$",
+                  "type": "string",
+                  "example": "frontend-trace-123"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "message": "No pudimos completar tu solicitud. Inténtalo nuevamente.",
+                  "data": null,
+                  "traceId": "frontend-trace-123"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/products": {
+      "post": {
+        "tags": [
+          "Productos"
+        ],
+        "summary": "Registrar un producto",
+        "description": "Crea su ficha sin stock. Un SKU existente se rechaza.",
+        "operationId": "registerProduct",
+        "parameters": [
+          {
+            "name": "X-Trace-Id",
+            "in": "header",
+            "description": "Correlación opcional; si falta o es inválida, el servidor genera un UUID.",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9._-]{1,64}$",
+              "type": "string",
+              "example": "frontend-trace-123"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterProductRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "headers": {
+              "X-Trace-Id": {
+                "description": "Mismo identificador que el traceId del cuerpo.",
+                "schema": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9._-]{1,64}$",
+                  "type": "string",
+                  "example": "frontend-trace-123"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseProductData"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Solicitud inválida.",
+            "headers": {
+              "X-Trace-Id": {
+                "description": "Mismo identificador que el traceId del cuerpo.",
+                "schema": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9._-]{1,64}$",
+                  "type": "string",
+                  "example": "frontend-trace-123"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "message": "Revisa los datos de tu solicitud e inténtalo nuevamente.",
+                  "data": null,
+                  "traceId": "frontend-trace-123"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "La API responde en JSON.",
+            "headers": {
+              "X-Trace-Id": {
+                "description": "Mismo identificador que el traceId del cuerpo.",
+                "schema": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9._-]{1,64}$",
+                  "type": "string",
+                  "example": "frontend-trace-123"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "message": "Revisa los datos de tu solicitud e inténtalo nuevamente.",
+                  "data": null,
+                  "traceId": "frontend-trace-123"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto con las reglas o el estado del inventario o pedido.",
+            "headers": {
+              "X-Trace-Id": {
+                "description": "Mismo identificador que el traceId del cuerpo.",
+                "schema": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9._-]{1,64}$",
+                  "type": "string",
+                  "example": "frontend-trace-123"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "message": "No hay suficientes unidades disponibles para tu pedido.",
+                  "data": null,
+                  "traceId": "frontend-trace-123"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "El cuerpo debe usar application/json.",
+            "headers": {
+              "X-Trace-Id": {
+                "description": "Mismo identificador que el traceId del cuerpo.",
+                "schema": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9._-]{1,64}$",
+                  "type": "string",
+                  "example": "frontend-trace-123"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "message": "Revisa los datos de tu solicitud e inténtalo nuevamente.",
+                  "data": null,
+                  "traceId": "frontend-trace-123"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno; los detalles técnicos solo se registran en logs.",
+            "headers": {
+              "X-Trace-Id": {
+                "description": "Mismo identificador que el traceId del cuerpo.",
+                "schema": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9._-]{1,64}$",
+                  "type": "string",
+                  "example": "frontend-trace-123"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "message": "No pudimos completar tu solicitud. Inténtalo nuevamente.",
+                  "data": null,
+                  "traceId": "frontend-trace-123"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/products/{sku}/stock": {
+      "post": {
+        "tags": [
+          "Productos"
+        ],
+        "summary": "Reabastecer un producto",
+        "description": "Agrega unidades. Repetir esta operación agrega unidades otra vez.",
+        "operationId": "addStock",
+        "parameters": [
+          {
+            "name": "sku",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Trace-Id",
+            "in": "header",
+            "description": "Correlación opcional; si falta o es inválida, el servidor genera un UUID.",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9._-]{1,64}$",
+              "type": "string",
+              "example": "frontend-trace-123"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddStockRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Trace-Id": {
+                "description": "Mismo identificador que el traceId del cuerpo.",
+                "schema": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9._-]{1,64}$",
+                  "type": "string",
+                  "example": "frontend-trace-123"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseVoid"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Solicitud inválida.",
+            "headers": {
+              "X-Trace-Id": {
+                "description": "Mismo identificador que el traceId del cuerpo.",
+                "schema": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9._-]{1,64}$",
+                  "type": "string",
+                  "example": "frontend-trace-123"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "message": "Revisa los datos de tu solicitud e inténtalo nuevamente.",
+                  "data": null,
+                  "traceId": "frontend-trace-123"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Producto no registrado.",
+            "headers": {
+              "X-Trace-Id": {
+                "description": "Mismo identificador que el traceId del cuerpo.",
+                "schema": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9._-]{1,64}$",
+                  "type": "string",
+                  "example": "frontend-trace-123"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "message": "El producto no está registrado.",
+                  "data": null,
+                  "traceId": "frontend-trace-123"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "La API responde en JSON.",
+            "headers": {
+              "X-Trace-Id": {
+                "description": "Mismo identificador que el traceId del cuerpo.",
+                "schema": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9._-]{1,64}$",
+                  "type": "string",
+                  "example": "frontend-trace-123"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "message": "Revisa los datos de tu solicitud e inténtalo nuevamente.",
+                  "data": null,
+                  "traceId": "frontend-trace-123"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto con las reglas o el estado del inventario o pedido.",
+            "headers": {
+              "X-Trace-Id": {
+                "description": "Mismo identificador que el traceId del cuerpo.",
+                "schema": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9._-]{1,64}$",
+                  "type": "string",
+                  "example": "frontend-trace-123"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "message": "No hay suficientes unidades disponibles para tu pedido.",
+                  "data": null,
+                  "traceId": "frontend-trace-123"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "El cuerpo debe usar application/json.",
+            "headers": {
+              "X-Trace-Id": {
+                "description": "Mismo identificador que el traceId del cuerpo.",
+                "schema": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9._-]{1,64}$",
+                  "type": "string",
+                  "example": "frontend-trace-123"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "message": "Revisa los datos de tu solicitud e inténtalo nuevamente.",
+                  "data": null,
+                  "traceId": "frontend-trace-123"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno; los detalles técnicos solo se registran en logs.",
+            "headers": {
+              "X-Trace-Id": {
+                "description": "Mismo identificador que el traceId del cuerpo.",
+                "schema": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9._-]{1,64}$",
+                  "type": "string",
+                  "example": "frontend-trace-123"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "message": "No pudimos completar tu solicitud. Inténtalo nuevamente.",
+                  "data": null,
+                  "traceId": "frontend-trace-123"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/products/{sku}/availability": {
+      "get": {
+        "tags": [
+          "Productos"
+        ],
+        "summary": "Consultar disponibilidad",
+        "description": "Excluye reservas activas. Un SKU desconocido tiene cero disponibles.",
+        "operationId": "available",
+        "parameters": [
+          {
+            "name": "sku",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Trace-Id",
+            "in": "header",
+            "description": "Correlación opcional; si falta o es inválida, el servidor genera un UUID.",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9._-]{1,64}$",
+              "type": "string",
+              "example": "frontend-trace-123"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Trace-Id": {
+                "description": "Mismo identificador que el traceId del cuerpo.",
+                "schema": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9._-]{1,64}$",
+                  "type": "string",
+                  "example": "frontend-trace-123"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseAvailabilityData"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Solicitud inválida.",
+            "headers": {
+              "X-Trace-Id": {
+                "description": "Mismo identificador que el traceId del cuerpo.",
+                "schema": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9._-]{1,64}$",
+                  "type": "string",
+                  "example": "frontend-trace-123"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "message": "Revisa los datos de tu solicitud e inténtalo nuevamente.",
+                  "data": null,
+                  "traceId": "frontend-trace-123"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "La API responde en JSON.",
+            "headers": {
+              "X-Trace-Id": {
+                "description": "Mismo identificador que el traceId del cuerpo.",
+                "schema": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9._-]{1,64}$",
+                  "type": "string",
+                  "example": "frontend-trace-123"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "message": "Revisa los datos de tu solicitud e inténtalo nuevamente.",
+                  "data": null,
+                  "traceId": "frontend-trace-123"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno; los detalles técnicos solo se registran en logs.",
+            "headers": {
+              "X-Trace-Id": {
+                "description": "Mismo identificador que el traceId del cuerpo.",
+                "schema": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9._-]{1,64}$",
+                  "type": "string",
+                  "example": "frontend-trace-123"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "message": "No pudimos completar tu solicitud. Inténtalo nuevamente.",
+                  "data": null,
+                  "traceId": "frontend-trace-123"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ReserveRequest": {
+        "required": [
+          "orderId",
+          "quantity",
+          "sku"
+        ],
+        "type": "object",
+        "properties": {
+          "orderId": {
+            "maxLength": 255,
+            "minLength": 1,
+            "pattern": "\\S",
+            "type": "string"
+          },
+          "sku": {
+            "maxLength": 255,
+            "minLength": 1,
+            "pattern": "\\S",
+            "type": "string"
+          },
+          "quantity": {
+            "minimum": 0,
+            "exclusiveMinimum": true,
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ApiResponseReservation": {
+        "required": [
+          "data",
+          "message",
+          "success",
+          "traceId"
+        ],
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "message": {
+            "minLength": 1,
+            "type": "string",
+            "description": "Mensaje para el cliente."
+          },
+          "data": {
+            "$ref": "#/components/schemas/Reservation"
+          },
+          "traceId": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9._-]{1,64}$",
+            "type": "string",
+            "example": "frontend-trace-123"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Reservation": {
+        "required": [
+          "expiresAt",
+          "orderId",
+          "quantity",
+          "sku"
+        ],
+        "type": "object",
+        "properties": {
+          "orderId": {
+            "type": "string"
+          },
+          "sku": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseVoid": {
+        "required": [
+          "data",
+          "message",
+          "success",
+          "traceId"
+        ],
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "message": {
+            "minLength": 1,
+            "type": "string",
+            "description": "Mensaje para el cliente."
+          },
+          "data": {
+            "type": "object",
+            "description": "Siempre null.",
+            "nullable": true
+          },
+          "traceId": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9._-]{1,64}$",
+            "type": "string",
+            "example": "frontend-trace-123"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RegisterProductRequest": {
+        "required": [
+          "category",
+          "sku"
+        ],
+        "type": "object",
+        "properties": {
+          "sku": {
+            "maxLength": 255,
+            "minLength": 1,
+            "pattern": "\\S",
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "STANDARD",
+              "PRE_ORDER",
+              "FLASH_SALE"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "ApiResponseProductData": {
+        "required": [
+          "data",
+          "message",
+          "success",
+          "traceId"
+        ],
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "message": {
+            "minLength": 1,
+            "type": "string",
+            "description": "Mensaje para el cliente."
+          },
+          "data": {
+            "$ref": "#/components/schemas/ProductData"
+          },
+          "traceId": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9._-]{1,64}$",
+            "type": "string",
+            "example": "frontend-trace-123"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProductData": {
+        "required": [
+          "category",
+          "sku"
+        ],
+        "type": "object",
+        "properties": {
+          "sku": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "STANDARD",
+              "PRE_ORDER",
+              "FLASH_SALE"
+            ]
+          }
+        }
+      },
+      "AddStockRequest": {
+        "required": [
+          "quantity"
+        ],
+        "type": "object",
+        "properties": {
+          "quantity": {
+            "minimum": 0,
+            "exclusiveMinimum": true,
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ApiResponseAvailabilityData": {
+        "required": [
+          "data",
+          "message",
+          "success",
+          "traceId"
+        ],
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "message": {
+            "minLength": 1,
+            "type": "string",
+            "description": "Mensaje para el cliente."
+          },
+          "data": {
+            "$ref": "#/components/schemas/AvailabilityData"
+          },
+          "traceId": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9._-]{1,64}$",
+            "type": "string",
+            "example": "frontend-trace-123"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AvailabilityData": {
+        "required": [
+          "availableUnits",
+          "sku"
+        ],
+        "type": "object",
+        "properties": {
+          "sku": {
+            "type": "string"
+          },
+          "availableUnits": {
+            "minimum": 0,
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "InventoryErrorResponse": {
+        "required": [
+          "data",
+          "message",
+          "success",
+          "traceId"
+        ],
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              false
+            ]
+          },
+          "message": {
+            "type": "string",
+            "description": "Mensaje apto para mostrar al cliente."
+          },
+          "data": {
+            "type": "object",
+            "description": "Siempre null en errores.",
+            "nullable": true
+          },
+          "traceId": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9._-]{1,64}$",
+            "type": "string",
+            "example": "frontend-trace-123"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}

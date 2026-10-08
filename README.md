@@ -1,65 +1,82 @@
 # Reservas de inventario
 
-## Contexto
+Microservicio de inventario con Java 21, Spring Boot y DDD ligero. Reserva unidades mientras el cliente paga, confirma ventas y libera reservas vencidas. Productos, pedidos, avisos y DLQ se guardan en H2 en memoria.
 
-Te uniste al equipo de una tienda en línea. Los clientes compran desde una app móvil donde arman su carrito, lo envían y pagan. Cada producto del carrito viaja como un pedido independiente. Si la conexión es lenta, la app reenvía el pedido automáticamente hasta recibir respuesta.
+## Ejecutar
 
-Actualmente, la tienda no aparta productos mientras el cliente paga, solo los descuenta cuando el pago se aprueba. Por eso, en temporada alta, cuando cientos de clientes compran los mismos productos al mismo tiempo, puede producirse una sobreventa de unidades.
+Requiere JDK 21 y Maven 3.6.3 o posterior. `mvn -version` debe mostrar Java 21; configurar `JAVA_HOME` según el JDK instalado.
 
-Queremos que la tienda reserve las unidades de cada pedido mientras el cliente paga.
-
-Criterios a implementar:
-
-- Cuando el cliente envía su carrito, sus unidades quedan reservadas y nadie más puede comprarlas.
-- Si no paga a tiempo, la reserva se libera y otros clientes pueden comprar esas unidades.
-- Cuando el pago se aprueba, la reserva se confirma y las unidades quedan vendidas.
-
-El tiempo para pagar y el límite de unidades por pedido dependen de la categoría del producto. Marketing suele crear una categoría nueva cada temporada.
-
-| Categoría    | Tiempo para pagar                          | Límite por pedido |
-| ------------ | ------------------------------------------ | ----------------- |
-| `STANDARD`   | 15 minutos                                 | Sin límite        |
-| `PRE_ORDER`  | 24 horas, porque se paga por transferencia | Sin límite        |
-| `FLASH_SALE` | 5 minutos                                  | 2 unidades        |
-
-El equipo de compras también quiere enterarse a tiempo para reabastecer. Cuando a un producto le quedan 5 unidades disponibles o menos, debe recibir un aviso, pero no el mismo aviso repetido mientras el producto no se reabastezca. Actualmente, los avisos llegan por correo y en el futuro quieren expandirse a más canales de comunicación.
-
-## Estado actual
-
-Este repositorio es el servicio de inventario. La app ya está preparada para usarlo a través de un contrato, pero la implementación todavía no existe.
-
-- `com.store.inventory.api` es el contrato que usa la app. Contiene la interfaz `InventoryService`, las categorías, las reservas, las excepciones y `StockAlertListener`, que es por donde salen los avisos a compras.
-- `Inventory.create(Clock, StockAlertListener)` es el punto de entrada. Lanza `UnsupportedOperationException`.
-- `InventoryServiceTest` tiene tests básicos del flujo principal.
-
-Por ahora los datos pueden vivir en memoria. El inventario se migrará a una base de datos y el servicio correrá en varias instancias.
-
-## Tu tarea
-
-Implementa el servicio de reservas cumpliendo lo descrito en el contexto.
-
-Ten en cuenta que este código lo mantendrá el equipo durante los próximos años, y que otras personas tendrán que modificarlo sin tu ayuda cuando cambien las reglas del negocio.
-
-Entrégalo como si fuera un Pull Request listo para revisión, con lo que consideres necesario para que el equipo confíe en que funciona. Incluye un `DECISIONS.md` con tus supuestos, lo que dejaste fuera y lo que cambiarías antes de llevarlo a producción.
-
-## Reglas del contrato
-
-Nuestros tests automáticos se conectan a tu código mediante el contrato. Para que funcionen, por favor sigue estas reglas:
-
-- No modifiques ningún archivo del paquete `com.store.inventory.api`.
-- No cambies la firma de `Inventory.create(Clock, StockAlertListener)`. Su implementación sí es tuya.
-- Los tests ya incluidos deben pasar.
-
-Tienes la libertad de modificar todo lo demás. Puedes crear las clases, paquetes y dependencias que necesites, y usar las herramientas de tu día a día.
-
-## Cómo correr los tests
-
-```bash
+```powershell
 mvn test
+mvn spring-boot:run
 ```
 
-Requiere Java 21 y Maven.
+La API inicia en `http://localhost:8080` con el inventario vacío. Al reiniciar se pierden los datos. Los avisos locales se reciben mediante un listener que escribe en logs; puede reemplazarse por una integración de correo u otro canal.
 
-## Entrega
+## Demostración con datos
 
-Compártenos un repositorio con el proyecto completo.
+```powershell
+mvn spring-boot:run "-Dspring-boot.run.profiles=demo"
+```
+
+Carga cinco productos, tres reservas activas y tres pedidos confirmados. Usa un reloj fijo y un listener de demostración. La [guía de la seed](docs/SEED.md) explica los datos y cómo simular vencimientos sin esperar.
+
+Para avanzar 16 minutos después de cargar los pedidos:
+
+```powershell
+mvn spring-boot:run "-Dspring-boot.run.profiles=demo" "-Dspring-boot.run.arguments=--demo.advance-by=PT16M"
+```
+
+## Consumir la API
+
+- [Swagger UI](http://localhost:8080/swagger-ui.html): explorar y ejecutar las operaciones.
+- [OpenAPI generado](http://localhost:8080/v3/api-docs) y [exportación verificada](docs/openapi.json).
+- [Contrato HTTP](docs/API.md): solicitudes, respuestas, validaciones y estados.
+- [Postman](postman/README.md): importación y ejecución de 40 solicitudes con 142 aserciones.
+
+Las rutas son:
+
+- `POST /products`: registrar producto.
+- `POST /products/{sku}/stock`: agregar unidades.
+- `GET /products/{sku}/availability`: consultar disponibilidad.
+- `POST /reservations`: reservar unidades.
+- `POST /reservations/{orderId}/confirm`: confirmar pedido pagado.
+
+Todas las respuestas de negocio contienen únicamente `success`, `message`, `data` y `traceId`. El frontend puede leer siempre `message`; los detalles técnicos quedan en logs. `X-Trace-Id` permite correlacionar solicitudes y notificaciones.
+
+## Reglas principales
+
+- Cada pedido corresponde a un producto y una cantidad. Los reintentos no duplican reservas ni ventas y conservan el vencimiento original.
+- `STANDARD`: 15 minutos para pagar, sin límite por categoría.
+- `PRE_ORDER`: 24 horas, sin límite por categoría.
+- `FLASH_SALE`: 5 minutos y máximo 2 unidades por pedido.
+- Todas las reservas dependen del stock disponible. Al vencer, sus unidades quedan libres; las confirmadas permanecen vendidas.
+- Con 5 unidades disponibles o menos se crea un aviso, sin repetirlo hasta reabastecer.
+- Los avisos se entregan después del commit. Si fallan, hay cinco reintentos con esperas de 2, 4, 8, 16 y 32 segundos y jitter de ±20 %; después pasan a DLQ.
+
+Los detalles están en [BUSINESS_RULES.md](BUSINESS_RULES.md).
+
+## Contrato Java y pruebas
+
+Se conservan sin cambios el paquete `com.store.inventory.api`, la firma de `Inventory.create(Clock, StockAlertListener)` y los tres tests originales. La fábrica puede usarse sin arrancar Spring y crea su propia H2 vacía y aislada; la implementación es `AutoCloseable` para liberar recursos.
+
+La API HTTP usa el mismo servicio con la base configurada por Spring. La seed nunca se carga automáticamente desde la fábrica.
+
+[TESTING.md](docs/TESTING.md) describe las pruebas de negocio, H2, concurrencia, notificaciones, HTTP y documentación. `mvn test` compara además el OpenAPI generado y las rutas de Postman con los archivos del repositorio.
+
+## Configuración y alcance
+
+- `SERVER_PORT`: puerto HTTP, por defecto 8080.
+- `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`: conexión de la aplicación; el valor local por defecto es H2 en memoria.
+- `demo.initial-time` y `demo.advance-by`: tiempo controlado del perfil de demostración.
+
+Actualmente el esquema se crea y elimina al iniciar y cerrar. Una base persistente necesita migraciones y verificación con el motor elegido, no solo cambiar la URL. H2 en memoria no comparte datos entre procesos.
+
+Docker, Kubernetes, `.env.example` y GitHub Actions corresponden a las tareas 17 y 18 y siguen pendientes.
+
+## Documentación del proyecto
+
+- [DECISIONS.md](DECISIONS.md): decisiones, supuestos y límites.
+- [ARCHITECTURE.md](ARCHITECTURE.md): capas, almacenamiento, transacciones y observabilidad.
+- [BUSINESS_RULES.md](BUSINESS_RULES.md): reglas identificadas con prefijo BR.
+- [TASKS.md](TASKS.md): avance de implementación y pendientes de producción.

@@ -64,7 +64,8 @@ Requiere JDK 21 y Maven 3.6.3 o posterior; `JAVA_HOME` debe apuntar al JDK.
 - `mvn -Dtest=InventoryApplicationTest test`: comprueba el arranque del servidor en un puerto aleatorio.
 - `mvn "-Dtest=com.store.inventory.domain.*Test" test`: ejecuta las pruebas del dominio sin arrancar Spring ni esperar tiempo real.
 - `mvn "-Dtest=com.store.inventory.infrastructure.jpa.*Test,InventoryApplicationServiceTest,InventoryFactoryTest" test`: verifica los adaptadores con H2 real, la disponibilidad y la fábrica.
-- `mvn spring-boot:run`: inicia la API en `http://localhost:8080`, con H2 vacía. La seed queda para la tarea 14.
+- `mvn spring-boot:run`: inicia la API en `http://localhost:8080`, con H2 vacía.
+- `mvn spring-boot:run "-Dspring-boot.run.profiles=demo"`: carga la seed y utiliza un reloj controlado; ver [SEED.md](docs/SEED.md).
 - `mvn test`: ejecuta todos los tests, incluidos los tres originales, que ya pasan.
 
 La prueba de arranque requiere conexiones locales habilitadas en el entorno de ejecución.
@@ -131,14 +132,16 @@ El identificador se guarda en cada aviso de H2. `StockAlertDelivery` lo recupera
 
 Usamos `INFO` para registro, reabastecimiento, reservas, confirmaciones y entrega de avisos; `WARN` para fallos recuperables; `ERROR` para fallos inesperados o paso a DLQ; y `DEBUG` para reintentos idempotentes, vencimientos preparados y diagnóstico HTTP. Los identificadores se escapan en los logs para evitar saltos de línea introducidos por entradas externas. No se registran cuerpos HTTP completos ni credenciales; el manejador global registra una sola traza por error inesperado.
 
-La aplicación local proporciona `LoggingStockAlertListener`: registra los avisos en logs como demostración. Una integración de correo puede reemplazar ese bean sin cambiar el contrato. OpenAPI, Swagger UI y Postman siguen pendientes de la tarea 16.
+La aplicación local proporciona `LoggingStockAlertListener`: registra los avisos en logs como demostración. Una integración de correo puede reemplazar ese bean sin cambiar el contrato. OpenAPI y Swagger UI están disponibles en `/v3/api-docs` y `/swagger-ui.html`; la colección de Postman y su [guía](postman/README.md) verifican las mismas operaciones.
 
 ## Pruebas y demostración
 
 - Conservar los tests originales y ampliar cobertura de dominio, aplicación, concurrencia, notificaciones y REST.
 - Usar reloj y planificador controlables para comprobar vencimientos y reintentos sin esperas reales.
-- Implementar la seed posteriormente, en la tarea 14, y cargarla explícitamente en H2 mediante la API Java, con las tres categorías y pedidos en distintos estados, usando un reloj controlado. La fábrica no cargará semillas automáticamente.
-- Crear OpenAPI, Swagger UI y Postman durante la implementación; verificar que coincidan con las respuestas reales.
+- `DemoInventorySeed` carga productos y pedidos de las tres categorías mediante la API Java. `DemoConfiguration` la activa únicamente con el perfil `demo` y usa `DemoClock` y el listener de logs. La fábrica sigue vacía.
+- `demo.advance-by` avanza el reloj después de cargar los pedidos para reproducir vencimientos. No se agregaron rutas para modificar el tiempo.
+- `DocumentationAndDemoTest` compara el OpenAPI generado con [docs/openapi.json](docs/openapi.json). `PostmanContractTest` verifica rutas y variables, y la colección fue ejecutada contra el JAR local mediante Newman.
+- [TESTING.md](docs/TESTING.md) describe cobertura, comandos y límites de la verificación.
 
 ## Empaquetado y ejecución
 

@@ -54,7 +54,7 @@ Las operaciones serán atómicas por producto mediante transacciones y bloqueos 
 
 Usaremos H2 en memoria mediante JPA para productos, stock, reservas, registros de pedidos, avisos y DLQ. Las entidades JPA estarán separadas del dominio. Al reiniciar se perderán los datos, incluida la protección contra duplicados.
 
-La seed se implementará posteriormente en la tarea 14 y se cargará explícitamente en H2 mediante la API Java, con las tres categorías, distintas cantidades de stock, reservas activas y pedidos confirmados. Usará un reloj controlado y un listener de demostración. `Inventory.create(...)` seguirá creando un inventario vacío en una base H2 aislada, sin iniciar Spring.
+La seed se carga explícitamente con el perfil `demo` en H2 mediante la API Java, con las tres categorías, distintas cantidades de stock, reservas activas y pedidos confirmados. Usa un reloj controlado y un listener de demostración; `demo.advance-by` permite simular vencimientos al arrancar. `Inventory.create(...)` sigue creando un inventario vacío en una base H2 aislada, sin iniciar Spring.
 
 ### Entrega de avisos
 

@@ -13,8 +13,11 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
+@Tag(name = "Reservas")
 @RequestMapping(path = "/reservations", produces = MediaType.APPLICATION_JSON_VALUE)
 public class ReservationController {
 
@@ -25,12 +28,14 @@ public class ReservationController {
     }
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(operationId = "reserve", summary = "Reservar unidades", description = "Los reintentos conservan la reserva original. No reactiva pedidos vencidos.")
     public ApiResponse<Reservation> reserve(@Valid @RequestBody ReserveRequest request) {
         return ApiResponse.success("Tu reserva fue procesada.",
                 service.reserve(request.orderId(), request.sku(), request.quantity()));
     }
 
     @PostMapping("/{orderId}/confirm")
+    @Operation(operationId = "confirm", summary = "Confirmar un pedido pagado", description = "Una confirmación repetida no vuelve a descontar unidades.")
     public ApiResponse<Void> confirm(@PathVariable("orderId") String orderId) {
         service.confirm(orderId);
         return ApiResponse.success("Tu pedido fue confirmado.", null);

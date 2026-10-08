@@ -1,0 +1,2320 @@
+{
+  "info": {
+    "_postman_id": "ef9dc445-5ed6-46a7-bd3b-ff2c4aef62e0",
+    "name": "Inventory · Contrato REST",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "40 solicitudes para la API implementada. Ejecutar todas las carpetas en orden, una iteración y sin pausas. Primera solicitud genera datos únicos; no depende de la seed. Verifica el sobre JSON de cuatro campos, traceId, estados HTTP, políticas e idempotencia. Leer postman/README.md. Los ejemplos guardados describen el contrato; fechas e identificadores son ilustrativos."
+  },
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "pm.test(\"Respuesta JSON con cuatro campos\", function () {",
+          "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+          "  const body = pm.response.json();",
+          "  pm.expect(Object.keys(body).sort()).to.deep.eql([\"data\", \"message\", \"success\", \"traceId\"]);",
+          "  pm.expect(body.message).to.be.a(\"string\").and.not.empty;",
+          "  pm.expect(body.traceId).to.eql(pm.response.headers.get(\"X-Trace-Id\"));",
+          "  pm.expect(body.traceId).to.eql(pm.collectionVariables.get(\"traceId\"));",
+          "});"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string",
+      "description": "URL del servicio sin barra final; puede sobrescribirse desde el entorno."
+    },
+    {
+      "key": "runId",
+      "value": "",
+      "type": "string",
+      "description": "Generada por la colección; no definir en el entorno."
+    },
+    {
+      "key": "traceId",
+      "value": "",
+      "type": "string",
+      "description": "Generada por la colección; no definir en el entorno."
+    },
+    {
+      "key": "standardSku",
+      "value": "",
+      "type": "string",
+      "description": "Generada por la colección; no definir en el entorno."
+    },
+    {
+      "key": "flashSku",
+      "value": "",
+      "type": "string",
+      "description": "Generada por la colección; no definir en el entorno."
+    },
+    {
+      "key": "preOrderSku",
+      "value": "",
+      "type": "string",
+      "description": "Generada por la colección; no definir en el entorno."
+    },
+    {
+      "key": "unknownSku",
+      "value": "",
+      "type": "string",
+      "description": "Generada por la colección; no definir en el entorno."
+    },
+    {
+      "key": "standardOrder",
+      "value": "",
+      "type": "string",
+      "description": "Generada por la colección; no definir en el entorno."
+    },
+    {
+      "key": "flashOrder",
+      "value": "",
+      "type": "string",
+      "description": "Generada por la colección; no definir en el entorno."
+    },
+    {
+      "key": "preOrder",
+      "value": "",
+      "type": "string",
+      "description": "Generada por la colección; no definir en el entorno."
+    },
+    {
+      "key": "insufficientOrder",
+      "value": "",
+      "type": "string",
+      "description": "Generada por la colección; no definir en el entorno."
+    },
+    {
+      "key": "invalidOrder",
+      "value": "",
+      "type": "string",
+      "description": "Generada por la colección; no definir en el entorno."
+    },
+    {
+      "key": "originalReservation",
+      "value": "",
+      "type": "string",
+      "description": "Generada por la colección; no definir en el entorno."
+    }
+  ],
+  "item": [
+    {
+      "name": "01 · STANDARD e idempotencia",
+      "description": "Preparación y flujo completo de reserva y venta.",
+      "item": [
+        {
+          "name": "01 · Registrar STANDARD",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/products",
+            "description": "Primera solicitud obligatoria: genera identificadores únicos para toda la ejecución y registra un producto sin stock.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"{{standardSku}}\",\n  \"category\": \"STANDARD\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const runId = pm.variables.replaceIn(\"{{$guid}}\");",
+                  "pm.collectionVariables.set(\"runId\", runId);",
+                  "pm.collectionVariables.set(\"traceId\", \"postman-\" + runId);",
+                  "[\"standardSku\", \"flashSku\", \"preOrderSku\", \"unknownSku\", \"standardOrder\", \"flashOrder\", \"preOrder\", \"insufficientOrder\", \"invalidOrder\"].forEach(function (key) { pm.collectionVariables.set(key, \"POSTMAN-\" + key + \"-\" + runId); });",
+                  "pm.collectionVariables.unset(\"originalReservation\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.test(\"Resultado exitoso\", function () { pm.expect(pm.response.json().success).to.eql(true); });"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Ejemplo del contrato verificado",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Trace-Id",
+                    "value": "{{traceId}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/products",
+                "description": "Primera solicitud obligatoria: genera identificadores únicos para toda la ejecución y registra un producto sin stock.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"sku\": \"{{standardSku}}\",\n  \"category\": \"STANDARD\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "code": 201,
+              "status": "Created",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-Trace-Id",
+                  "value": "{{traceId}}"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"El producto fue registrado.\",\n  \"data\": {\n    \"sku\": \"{{standardSku}}\",\n    \"category\": \"STANDARD\"\n  },\n  \"traceId\": \"{{traceId}}\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "02 · Agregar 10 unidades",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/products/{{standardSku}}/stock",
+            "description": "Agrega unidades; esta operación no es idempotente.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 10\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resultado exitoso\", function () { pm.expect(pm.response.json().success).to.eql(true); });",
+                  "pm.test(\"Operación sin datos adicionales\", function () { pm.expect(pm.response.json().data).to.eql(null); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 · Disponibilidad inicial 10",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/products/{{standardSku}}/availability",
+            "description": "Consulta el inventario libre, descontando únicamente reservas activas."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resultado exitoso\", function () { pm.expect(pm.response.json().success).to.eql(true); });",
+                  "pm.test(\"10 unidades disponibles\", function () { const data = pm.response.json().data; pm.expect(data.sku).to.eql(pm.collectionVariables.get(\"standardSku\")); pm.expect(data.availableUnits).to.eql(10); });"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Ejemplo del contrato verificado",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Trace-Id",
+                    "value": "{{traceId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/products/{{standardSku}}/availability",
+                "description": "Consulta el inventario libre, descontando únicamente reservas activas."
+              },
+              "code": 200,
+              "status": "OK",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-Trace-Id",
+                  "value": "{{traceId}}"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Disponibilidad consultada.\",\n  \"data\": {\n    \"sku\": \"{{standardSku}}\",\n    \"availableUnits\": 10\n  },\n  \"traceId\": \"{{traceId}}\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "04 · Reservar 3 unidades",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/reservations",
+            "description": "Reserva STANDARD, plazo de 15 minutos.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{standardOrder}}\",\n  \"sku\": \"{{standardSku}}\",\n  \"quantity\": 3\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resultado exitoso\", function () { pm.expect(pm.response.json().success).to.eql(true); });",
+                  "pm.test(\"Datos de la reserva\", function () { const data = pm.response.json().data; pm.expect(data.sku).to.eql(pm.collectionVariables.get(\"standardSku\")); pm.expect(data.orderId).to.eql(pm.collectionVariables.get(\"standardOrder\")); pm.expect(data.quantity).to.eql(3); pm.expect(Number.isNaN(Date.parse(data.expiresAt))).to.eql(false); });",
+                  "if (pm.response.code === 200) { pm.collectionVariables.set(\"originalReservation\", JSON.stringify(pm.response.json().data)); }"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Ejemplo del contrato verificado",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Trace-Id",
+                    "value": "{{traceId}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/reservations",
+                "description": "Reserva STANDARD, plazo de 15 minutos.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"orderId\": \"{{standardOrder}}\",\n  \"sku\": \"{{standardSku}}\",\n  \"quantity\": 3\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "code": 200,
+              "status": "OK",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-Trace-Id",
+                  "value": "{{traceId}}"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Tu reserva fue procesada.\",\n  \"data\": {\n    \"orderId\": \"{{standardOrder}}\",\n    \"sku\": \"{{standardSku}}\",\n    \"quantity\": 3,\n    \"expiresAt\": \"2026-10-08T12:15:00Z\"\n  },\n  \"traceId\": \"{{traceId}}\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "05 · Quedan 7 disponibles",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/products/{{standardSku}}/availability",
+            "description": "Consulta el inventario libre, descontando únicamente reservas activas."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resultado exitoso\", function () { pm.expect(pm.response.json().success).to.eql(true); });",
+                  "pm.test(\"7 unidades disponibles\", function () { const data = pm.response.json().data; pm.expect(data.sku).to.eql(pm.collectionVariables.get(\"standardSku\")); pm.expect(data.availableUnits).to.eql(7); });"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Ejemplo del contrato verificado",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Trace-Id",
+                    "value": "{{traceId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/products/{{standardSku}}/availability",
+                "description": "Consulta el inventario libre, descontando únicamente reservas activas."
+              },
+              "code": 200,
+              "status": "OK",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-Trace-Id",
+                  "value": "{{traceId}}"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Disponibilidad consultada.\",\n  \"data\": {\n    \"sku\": \"{{standardSku}}\",\n    \"availableUnits\": 7\n  },\n  \"traceId\": \"{{traceId}}\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "06 · Repetir reserva activa",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/reservations",
+            "description": "Mantiene datos y vencimiento originales sin reservar más unidades.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{standardOrder}}\",\n  \"sku\": \"{{standardSku}}\",\n  \"quantity\": 3\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resultado exitoso\", function () { pm.expect(pm.response.json().success).to.eql(true); });",
+                  "pm.test(\"Reserva original sin renovar vencimiento\", function () { pm.expect(pm.response.json().data).to.deep.eql(JSON.parse(pm.collectionVariables.get(\"originalReservation\"))); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "07 · El reintento conserva 7",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/products/{{standardSku}}/availability",
+            "description": "Consulta el inventario libre, descontando únicamente reservas activas."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resultado exitoso\", function () { pm.expect(pm.response.json().success).to.eql(true); });",
+                  "pm.test(\"7 unidades disponibles\", function () { const data = pm.response.json().data; pm.expect(data.sku).to.eql(pm.collectionVariables.get(\"standardSku\")); pm.expect(data.availableUnits).to.eql(7); });"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Ejemplo del contrato verificado",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Trace-Id",
+                    "value": "{{traceId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/products/{{standardSku}}/availability",
+                "description": "Consulta el inventario libre, descontando únicamente reservas activas."
+              },
+              "code": 200,
+              "status": "OK",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-Trace-Id",
+                  "value": "{{traceId}}"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Disponibilidad consultada.\",\n  \"data\": {\n    \"sku\": \"{{standardSku}}\",\n    \"availableUnits\": 7\n  },\n  \"traceId\": \"{{traceId}}\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "08 · Confirmar pedido",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/reservations/{{standardOrder}}/confirm",
+            "description": "Convierte las unidades reservadas en vendidas."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resultado exitoso\", function () { pm.expect(pm.response.json().success).to.eql(true); });",
+                  "pm.test(\"Confirmación sin datos\", function () { pm.expect(pm.response.json().data).to.eql(null); });"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Ejemplo del contrato verificado",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Trace-Id",
+                    "value": "{{traceId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/reservations/{{standardOrder}}/confirm",
+                "description": "Convierte las unidades reservadas en vendidas."
+              },
+              "code": 200,
+              "status": "OK",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-Trace-Id",
+                  "value": "{{traceId}}"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Tu pedido fue confirmado.\",\n  \"data\": null,\n  \"traceId\": \"{{traceId}}\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "09 · Repetir confirmación",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/reservations/{{standardOrder}}/confirm",
+            "description": "No descuenta unidades nuevamente."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resultado exitoso\", function () { pm.expect(pm.response.json().success).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 · Repetir reserva confirmada",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/reservations",
+            "description": "El pedido permanece confirmado y devuelve su reserva original.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{standardOrder}}\",\n  \"sku\": \"{{standardSku}}\",\n  \"quantity\": 3\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resultado exitoso\", function () { pm.expect(pm.response.json().success).to.eql(true); });",
+                  "pm.test(\"Respuesta original del pedido vendido\", function () { pm.expect(pm.response.json().data).to.deep.eql(JSON.parse(pm.collectionVariables.get(\"originalReservation\"))); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11 · La venta conserva 7 libres",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/products/{{standardSku}}/availability",
+            "description": "Consulta el inventario libre, descontando únicamente reservas activas."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resultado exitoso\", function () { pm.expect(pm.response.json().success).to.eql(true); });",
+                  "pm.test(\"7 unidades disponibles\", function () { const data = pm.response.json().data; pm.expect(data.sku).to.eql(pm.collectionVariables.get(\"standardSku\")); pm.expect(data.availableUnits).to.eql(7); });"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Ejemplo del contrato verificado",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Trace-Id",
+                    "value": "{{traceId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/products/{{standardSku}}/availability",
+                "description": "Consulta el inventario libre, descontando únicamente reservas activas."
+              },
+              "code": 200,
+              "status": "OK",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-Trace-Id",
+                  "value": "{{traceId}}"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Disponibilidad consultada.\",\n  \"data\": {\n    \"sku\": \"{{standardSku}}\",\n    \"availableUnits\": 7\n  },\n  \"traceId\": \"{{traceId}}\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 · FLASH_SALE",
+      "description": "Plazo de 5 minutos y límite de 2 unidades.",
+      "item": [
+        {
+          "name": "01 · Registrar FLASH_SALE",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/products",
+            "description": "Registra el producto de este escenario.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"{{flashSku}}\",\n  \"category\": \"FLASH_SALE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.test(\"Resultado exitoso\", function () { pm.expect(pm.response.json().success).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 · Agregar 10 unidades",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/products/{{flashSku}}/stock",
+            "description": "Prepara inventario independiente de la seed.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 10\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resultado exitoso\", function () { pm.expect(pm.response.json().success).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 · Reservar 2 unidades",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/reservations",
+            "description": "Comprueba el plazo de 5 minutos comparándolo con la reserva STANDARD creada en esta ejecución. Ejecutar el Runner sin pausas.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{flashOrder}}\",\n  \"sku\": \"{{flashSku}}\",\n  \"quantity\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resultado exitoso\", function () { pm.expect(pm.response.json().success).to.eql(true); });",
+                  "pm.test(\"Datos de la reserva\", function () { const data = pm.response.json().data; pm.expect(data.sku).to.eql(pm.collectionVariables.get(\"flashSku\")); pm.expect(data.orderId).to.eql(pm.collectionVariables.get(\"flashOrder\")); pm.expect(data.quantity).to.eql(2); pm.expect(Number.isNaN(Date.parse(data.expiresAt))).to.eql(false); });",
+                  "pm.test(\"Plazo según categoría\", function () {",
+                  "  const baseline = JSON.parse(pm.collectionVariables.get(\"originalReservation\"));",
+                  "  const actual = Date.parse(pm.response.json().data.expiresAt) - Date.parse(baseline.expiresAt);",
+                  "  const expected = (5 - 15) * 60000;",
+                  "  pm.expect(Math.abs(actual - expected)).to.be.below(60000);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 · Quedan 8 disponibles",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/products/{{flashSku}}/availability",
+            "description": "Consulta el inventario libre, descontando únicamente reservas activas."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resultado exitoso\", function () { pm.expect(pm.response.json().success).to.eql(true); });",
+                  "pm.test(\"8 unidades disponibles\", function () { const data = pm.response.json().data; pm.expect(data.sku).to.eql(pm.collectionVariables.get(\"flashSku\")); pm.expect(data.availableUnits).to.eql(8); });"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Ejemplo del contrato verificado",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Trace-Id",
+                    "value": "{{traceId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/products/{{flashSku}}/availability",
+                "description": "Consulta el inventario libre, descontando únicamente reservas activas."
+              },
+              "code": 200,
+              "status": "OK",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-Trace-Id",
+                  "value": "{{traceId}}"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Disponibilidad consultada.\",\n  \"data\": {\n    \"sku\": \"{{flashSku}}\",\n    \"availableUnits\": 8\n  },\n  \"traceId\": \"{{traceId}}\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "05 · Rechazar más de 2 unidades",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/reservations",
+            "description": "La regla FLASH_SALE se comunica como conflicto de negocio.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{runId}}-FLASH-LIMIT\",\n  \"sku\": \"{{flashSku}}\",\n  \"quantity\": 3\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", function () { pm.response.to.have.status(409); });",
+                  "pm.test(\"Resultado rechazado\", function () { pm.expect(pm.response.json().success).to.eql(false); pm.expect(pm.response.json().data).to.eql(null); });"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Ejemplo del contrato verificado",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Trace-Id",
+                    "value": "{{traceId}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/reservations",
+                "description": "La regla FLASH_SALE se comunica como conflicto de negocio.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"orderId\": \"{{runId}}-FLASH-LIMIT\",\n  \"sku\": \"{{flashSku}}\",\n  \"quantity\": 3\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "code": 409,
+              "status": "Conflict",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-Trace-Id",
+                  "value": "{{traceId}}"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Superaste el límite de unidades permitido por pedido.\",\n  \"data\": null,\n  \"traceId\": \"{{traceId}}\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "06 · El rechazo conserva 8",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/products/{{flashSku}}/availability",
+            "description": "Consulta el inventario libre, descontando únicamente reservas activas."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resultado exitoso\", function () { pm.expect(pm.response.json().success).to.eql(true); });",
+                  "pm.test(\"8 unidades disponibles\", function () { const data = pm.response.json().data; pm.expect(data.sku).to.eql(pm.collectionVariables.get(\"flashSku\")); pm.expect(data.availableUnits).to.eql(8); });"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Ejemplo del contrato verificado",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Trace-Id",
+                    "value": "{{traceId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/products/{{flashSku}}/availability",
+                "description": "Consulta el inventario libre, descontando únicamente reservas activas."
+              },
+              "code": 200,
+              "status": "OK",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-Trace-Id",
+                  "value": "{{traceId}}"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Disponibilidad consultada.\",\n  \"data\": {\n    \"sku\": \"{{flashSku}}\",\n    \"availableUnits\": 8\n  },\n  \"traceId\": \"{{traceId}}\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 · PRE_ORDER",
+      "description": "Plazo de 24 horas.",
+      "item": [
+        {
+          "name": "01 · Registrar PRE_ORDER",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/products",
+            "description": "Registra el producto de este escenario.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"{{preOrderSku}}\",\n  \"category\": \"PRE_ORDER\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.test(\"Resultado exitoso\", function () { pm.expect(pm.response.json().success).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 · Agregar 20 unidades",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/products/{{preOrderSku}}/stock",
+            "description": "Prepara inventario independiente de la seed.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 20\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resultado exitoso\", function () { pm.expect(pm.response.json().success).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 · Reservar 3 unidades",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/reservations",
+            "description": "Comprueba el plazo de 1440 minutos comparándolo con la reserva STANDARD creada en esta ejecución. Ejecutar el Runner sin pausas.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{preOrder}}\",\n  \"sku\": \"{{preOrderSku}}\",\n  \"quantity\": 3\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resultado exitoso\", function () { pm.expect(pm.response.json().success).to.eql(true); });",
+                  "pm.test(\"Datos de la reserva\", function () { const data = pm.response.json().data; pm.expect(data.sku).to.eql(pm.collectionVariables.get(\"preOrderSku\")); pm.expect(data.orderId).to.eql(pm.collectionVariables.get(\"preOrder\")); pm.expect(data.quantity).to.eql(3); pm.expect(Number.isNaN(Date.parse(data.expiresAt))).to.eql(false); });",
+                  "pm.test(\"Plazo según categoría\", function () {",
+                  "  const baseline = JSON.parse(pm.collectionVariables.get(\"originalReservation\"));",
+                  "  const actual = Date.parse(pm.response.json().data.expiresAt) - Date.parse(baseline.expiresAt);",
+                  "  const expected = (1440 - 15) * 60000;",
+                  "  pm.expect(Math.abs(actual - expected)).to.be.below(60000);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 · Quedan 17 disponibles",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/products/{{preOrderSku}}/availability",
+            "description": "Consulta el inventario libre, descontando únicamente reservas activas."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resultado exitoso\", function () { pm.expect(pm.response.json().success).to.eql(true); });",
+                  "pm.test(\"17 unidades disponibles\", function () { const data = pm.response.json().data; pm.expect(data.sku).to.eql(pm.collectionVariables.get(\"preOrderSku\")); pm.expect(data.availableUnits).to.eql(17); });"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Ejemplo del contrato verificado",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Trace-Id",
+                    "value": "{{traceId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/products/{{preOrderSku}}/availability",
+                "description": "Consulta el inventario libre, descontando únicamente reservas activas."
+              },
+              "code": 200,
+              "status": "OK",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-Trace-Id",
+                  "value": "{{traceId}}"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Disponibilidad consultada.\",\n  \"data\": {\n    \"sku\": \"{{preOrderSku}}\",\n    \"availableUnits\": 17\n  },\n  \"traceId\": \"{{traceId}}\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 · Errores y recuperación",
+      "description": "Rechazos sin efectos adicionales y recuperación tras reabastecer.",
+      "item": [
+        {
+          "name": "01 · Rechazar stock insuficiente",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/reservations",
+            "description": "Solicita 8 cuando hay 7; no consume el identificador.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{insufficientOrder}}\",\n  \"sku\": \"{{standardSku}}\",\n  \"quantity\": 8\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", function () { pm.response.to.have.status(409); });",
+                  "pm.test(\"Resultado rechazado\", function () { pm.expect(pm.response.json().success).to.eql(false); pm.expect(pm.response.json().data).to.eql(null); });"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Ejemplo del contrato verificado",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Trace-Id",
+                    "value": "{{traceId}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/reservations",
+                "description": "Solicita 8 cuando hay 7; no consume el identificador.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"orderId\": \"{{insufficientOrder}}\",\n  \"sku\": \"{{standardSku}}\",\n  \"quantity\": 8\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "code": 409,
+              "status": "Conflict",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-Trace-Id",
+                  "value": "{{traceId}}"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"message\": \"No hay suficientes unidades disponibles para tu pedido.\",\n  \"data\": null,\n  \"traceId\": \"{{traceId}}\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "02 · El rechazo conserva 7",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/products/{{standardSku}}/availability",
+            "description": "Consulta el inventario libre, descontando únicamente reservas activas."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resultado exitoso\", function () { pm.expect(pm.response.json().success).to.eql(true); });",
+                  "pm.test(\"7 unidades disponibles\", function () { const data = pm.response.json().data; pm.expect(data.sku).to.eql(pm.collectionVariables.get(\"standardSku\")); pm.expect(data.availableUnits).to.eql(7); });"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Ejemplo del contrato verificado",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Trace-Id",
+                    "value": "{{traceId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/products/{{standardSku}}/availability",
+                "description": "Consulta el inventario libre, descontando únicamente reservas activas."
+              },
+              "code": 200,
+              "status": "OK",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-Trace-Id",
+                  "value": "{{traceId}}"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Disponibilidad consultada.\",\n  \"data\": {\n    \"sku\": \"{{standardSku}}\",\n    \"availableUnits\": 7\n  },\n  \"traceId\": \"{{traceId}}\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "03 · Reabastecer con 5 unidades",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/products/{{standardSku}}/stock",
+            "description": "Eleva la disponibilidad a 12.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resultado exitoso\", function () { pm.expect(pm.response.json().success).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 · Reintentar el pedido rechazado",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/reservations",
+            "description": "El mismo identificador puede reservarse tras reabastecer.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{insufficientOrder}}\",\n  \"sku\": \"{{standardSku}}\",\n  \"quantity\": 8\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resultado exitoso\", function () { pm.expect(pm.response.json().success).to.eql(true); });",
+                  "pm.test(\"Datos de la reserva\", function () { const data = pm.response.json().data; pm.expect(data.sku).to.eql(pm.collectionVariables.get(\"standardSku\")); pm.expect(data.orderId).to.eql(pm.collectionVariables.get(\"insufficientOrder\")); pm.expect(data.quantity).to.eql(8); pm.expect(Number.isNaN(Date.parse(data.expiresAt))).to.eql(false); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 · Quedan 4 disponibles",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/products/{{standardSku}}/availability",
+            "description": "Consulta el inventario libre, descontando únicamente reservas activas."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resultado exitoso\", function () { pm.expect(pm.response.json().success).to.eql(true); });",
+                  "pm.test(\"4 unidades disponibles\", function () { const data = pm.response.json().data; pm.expect(data.sku).to.eql(pm.collectionVariables.get(\"standardSku\")); pm.expect(data.availableUnits).to.eql(4); });"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Ejemplo del contrato verificado",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Trace-Id",
+                    "value": "{{traceId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/products/{{standardSku}}/availability",
+                "description": "Consulta el inventario libre, descontando únicamente reservas activas."
+              },
+              "code": 200,
+              "status": "OK",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-Trace-Id",
+                  "value": "{{traceId}}"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Disponibilidad consultada.\",\n  \"data\": {\n    \"sku\": \"{{standardSku}}\",\n    \"availableUnits\": 4\n  },\n  \"traceId\": \"{{traceId}}\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "06 · Cantidad cero",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/reservations",
+            "description": "Validación sin modificar stock.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{invalidOrder}}\",\n  \"sku\": \"{{standardSku}}\",\n  \"quantity\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", function () { pm.response.to.have.status(400); });",
+                  "pm.test(\"Resultado rechazado\", function () { pm.expect(pm.response.json().success).to.eql(false); pm.expect(pm.response.json().data).to.eql(null); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "07 · Identificador vacío",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/reservations",
+            "description": "Los identificadores con solo espacios se rechazan.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"   \",\n  \"sku\": \"{{standardSku}}\",\n  \"quantity\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", function () { pm.response.to.have.status(400); });",
+                  "pm.test(\"Resultado rechazado\", function () { pm.expect(pm.response.json().success).to.eql(false); pm.expect(pm.response.json().data).to.eql(null); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "08 · JSON mal formado",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/reservations",
+            "description": "Errores de deserialización con el mismo JSON uniforme.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"orderId\": ",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", function () { pm.response.to.have.status(400); });",
+                  "pm.test(\"Resultado rechazado\", function () { pm.expect(pm.response.json().success).to.eql(false); pm.expect(pm.response.json().data).to.eql(null); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "09 · Cantidad enviada como texto",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/reservations",
+            "description": "No se convierten textos en cantidades.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{invalidOrder}}\",\n  \"sku\": \"{{standardSku}}\",\n  \"quantity\": \"2\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", function () { pm.response.to.have.status(400); });",
+                  "pm.test(\"Resultado rechazado\", function () { pm.expect(pm.response.json().success).to.eql(false); pm.expect(pm.response.json().data).to.eql(null); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 · Cantidad decimal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/reservations",
+            "description": "Las unidades deben ser enteras.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{invalidOrder}}\",\n  \"sku\": \"{{standardSku}}\",\n  \"quantity\": 1.5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", function () { pm.response.to.have.status(400); });",
+                  "pm.test(\"Resultado rechazado\", function () { pm.expect(pm.response.json().success).to.eql(false); pm.expect(pm.response.json().data).to.eql(null); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11 · Validaciones conservan 4",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/products/{{standardSku}}/availability",
+            "description": "Consulta el inventario libre, descontando únicamente reservas activas."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resultado exitoso\", function () { pm.expect(pm.response.json().success).to.eql(true); });",
+                  "pm.test(\"4 unidades disponibles\", function () { const data = pm.response.json().data; pm.expect(data.sku).to.eql(pm.collectionVariables.get(\"standardSku\")); pm.expect(data.availableUnits).to.eql(4); });"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Ejemplo del contrato verificado",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Trace-Id",
+                    "value": "{{traceId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/products/{{standardSku}}/availability",
+                "description": "Consulta el inventario libre, descontando únicamente reservas activas."
+              },
+              "code": 200,
+              "status": "OK",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-Trace-Id",
+                  "value": "{{traceId}}"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Disponibilidad consultada.\",\n  \"data\": {\n    \"sku\": \"{{standardSku}}\",\n    \"availableUnits\": 4\n  },\n  \"traceId\": \"{{traceId}}\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "12 · SKU desconocido devuelve cero",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/products/{{unknownSku}}/availability",
+            "description": "Consulta el inventario libre, descontando únicamente reservas activas."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resultado exitoso\", function () { pm.expect(pm.response.json().success).to.eql(true); });",
+                  "pm.test(\"0 unidades disponibles\", function () { const data = pm.response.json().data; pm.expect(data.sku).to.eql(pm.collectionVariables.get(\"unknownSku\")); pm.expect(data.availableUnits).to.eql(0); });"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Ejemplo del contrato verificado",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Trace-Id",
+                    "value": "{{traceId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/products/{{unknownSku}}/availability",
+                "description": "Consulta el inventario libre, descontando únicamente reservas activas."
+              },
+              "code": 200,
+              "status": "OK",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-Trace-Id",
+                  "value": "{{traceId}}"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Disponibilidad consultada.\",\n  \"data\": {\n    \"sku\": \"{{unknownSku}}\",\n    \"availableUnits\": 0\n  },\n  \"traceId\": \"{{traceId}}\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "13 · No reabastecer SKU desconocido",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/products/{{unknownSku}}/stock",
+            "description": "Un producto debe registrarse primero.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", function () { pm.response.to.have.status(404); });",
+                  "pm.test(\"Resultado rechazado\", function () { pm.expect(pm.response.json().success).to.eql(false); pm.expect(pm.response.json().data).to.eql(null); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "14 · Rechazar producto duplicado",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/products",
+            "description": "Conserva categoría y stock existentes.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"{{standardSku}}\",\n  \"category\": \"STANDARD\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", function () { pm.response.to.have.status(409); });",
+                  "pm.test(\"Resultado rechazado\", function () { pm.expect(pm.response.json().success).to.eql(false); pm.expect(pm.response.json().data).to.eql(null); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "15 · Rechazar pedido con otros datos",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/reservations",
+            "description": "El identificador del pedido confirmado no admite otra cantidad.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{standardOrder}}\",\n  \"sku\": \"{{standardSku}}\",\n  \"quantity\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", function () { pm.response.to.have.status(409); });",
+                  "pm.test(\"Resultado rechazado\", function () { pm.expect(pm.response.json().success).to.eql(false); pm.expect(pm.response.json().data).to.eql(null); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "16 · No confirmar pedido desconocido",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/reservations/{{runId}}-UNKNOWN/confirm",
+            "description": "No hay una reserva activa."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", function () { pm.response.to.have.status(409); });",
+                  "pm.test(\"Resultado rechazado\", function () { pm.expect(pm.response.json().success).to.eql(false); pm.expect(pm.response.json().data).to.eql(null); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "17 · Ruta inexistente",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/missing-inventory-route",
+            "description": "También responde los cuatro campos JSON."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", function () { pm.response.to.have.status(404); });",
+                  "pm.test(\"Resultado rechazado\", function () { pm.expect(pm.response.json().success).to.eql(false); pm.expect(pm.response.json().data).to.eql(null); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "18 · Categoría obligatoria",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/products",
+            "description": "Se valida antes de registrar.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"{{runId}}-MISSING-CATEGORY\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", function () { pm.response.to.have.status(400); });",
+                  "pm.test(\"Resultado rechazado\", function () { pm.expect(pm.response.json().success).to.eql(false); pm.expect(pm.response.json().data).to.eql(null); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "19 · Estado final sin cambios",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/products/{{standardSku}}/availability",
+            "description": "Consulta el inventario libre, descontando únicamente reservas activas."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resultado exitoso\", function () { pm.expect(pm.response.json().success).to.eql(true); });",
+                  "pm.test(\"4 unidades disponibles\", function () { const data = pm.response.json().data; pm.expect(data.sku).to.eql(pm.collectionVariables.get(\"standardSku\")); pm.expect(data.availableUnits).to.eql(4); });"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Ejemplo del contrato verificado",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Trace-Id",
+                    "value": "{{traceId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/products/{{standardSku}}/availability",
+                "description": "Consulta el inventario libre, descontando únicamente reservas activas."
+              },
+              "code": 200,
+              "status": "OK",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-Trace-Id",
+                  "value": "{{traceId}}"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Disponibilidad consultada.\",\n  \"data\": {\n    \"sku\": \"{{standardSku}}\",\n    \"availableUnits\": 4\n  },\n  \"traceId\": \"{{traceId}}\"\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

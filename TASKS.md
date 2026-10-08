@@ -26,9 +26,9 @@ Checklist basada en [DECISIONS.md](DECISIONS.md). Las tareas completadas se marc
 
 ## Pruebas y documentación
 
-- [ ] **14. Crear la seed.** Carga explícita en H2 mediante la API Java, con las tres categorías, stock variado, reservas activas y pedidos confirmados. Usar reloj controlado y listener de demostración; documentar su ejecución.
-- [ ] **15. Completar la cobertura automatizada.** Conservar los tests originales y cubrir reglas, validaciones, idempotencia, vencimientos, concurrencia, avisos, cancelaciones, jitter y DLQ. Usar reloj y planificador controlables; verificar JSON y mensajes seguros en la API, incluidos `400`, `409`, `404` y `500`. Todo deberá pasar con `mvn test`.
-- [ ] **16. Documentar y preparar Postman.** Crear OpenAPI, Swagger UI, colección importable, entorno local, ejemplos y guía. Alinear contratos y estados HTTP, ejecutar los escenarios contra la aplicación y actualizar la documentación según lo implementado.
+- [x] **14. Crear la seed.** Carga explícita en H2 mediante la API Java, con las tres categorías, stock variado, reservas activas y pedidos confirmados. Usar reloj controlado y listener de demostración; documentar su ejecución.
+- [x] **15. Completar la cobertura automatizada.** Conservar los tests originales y cubrir reglas, validaciones, idempotencia, vencimientos, concurrencia, avisos, cancelaciones, jitter y DLQ. Usar reloj y planificador controlables; verificar JSON y mensajes seguros en la API, incluidos `400`, `409`, `404` y `500`. Todo deberá pasar con `mvn test`.
+- [x] **16. Documentar y preparar Postman.** Crear OpenAPI, Swagger UI, colección importable, entorno local, ejemplos y guía. Alinear contratos y estados HTTP, ejecutar los escenarios contra la aplicación y actualizar la documentación según lo implementado.
 
 ## Infraestructura
 
