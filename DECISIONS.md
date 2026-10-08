@@ -52,9 +52,9 @@ Las operaciones serán atómicas por producto y protegeremos también la unicida
 
 ### Almacenamiento y seed
 
-Productos, stock, reservas, registros de pedidos y DLQ vivirán en memoria; se perderán al reiniciar, incluida la protección contra duplicados.
+Usaremos H2 en memoria mediante JPA para productos, stock, reservas y registros de pedidos. Los avisos y la DLQ también se guardarán en H2 cuando se implementen. Las entidades JPA estarán separadas del dominio. Al reiniciar se perderán los datos, incluida la protección contra duplicados.
 
-La seed se cargará explícitamente mediante la API Java, con las tres categorías, distintas cantidades de stock, reservas activas y pedidos confirmados. Usará un reloj controlado y un listener de demostración. `Inventory.create(...)` seguirá creando un inventario vacío.
+La seed se implementará posteriormente en la tarea 14 y se cargará explícitamente en H2 mediante la API Java, con las tres categorías, distintas cantidades de stock, reservas activas y pedidos confirmados. Usará un reloj controlado y un listener de demostración. `Inventory.create(...)` seguirá creando un inventario vacío en una base H2 aislada, sin iniciar Spring.
 
 ### Entrega de avisos
 
@@ -112,7 +112,7 @@ Estos archivos y flujos se crearán durante la implementación; por ahora solo q
 
 ### Pendientes antes de producción
 
-- Persistir inventario, pedidos, avisos y DLQ; definir retención de pedidos y reprocesamiento.
+- Migrar de H2 en memoria a una base persistente, con migraciones de esquema y pruebas en el motor elegido; definir retención de pedidos y reprocesamiento.
 - Garantizar atomicidad y unicidad entre instancias y deduplicar entregas de avisos en el receptor.
 - Validar la confirmación idempotente con el equipo: el contrato exige una reserva activa y no contempla explícitamente repetir una confirmación exitosa.
 - Precisar los estados HTTP restantes y verificar la implementación, OpenAPI, Postman y los tests.
