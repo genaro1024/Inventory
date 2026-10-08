@@ -5,7 +5,7 @@ Checklist basada en [DECISIONS.md](DECISIONS.md). Las tareas completadas se marc
 ## Negocio y arquitectura
 
 - [x] **1. Preparar Spring Boot y DDD.** Configurar Java 21 y Maven, separar dominio, aplicación e infraestructura y preservar el contrato público y la firma de `Inventory.create(...)`.
-- [ ] **2. Modelar el dominio.** Definir productos, reservas, estados y la tabla de políticas de las tres categorías, sin depender de Spring.
+- [x] **2. Modelar el dominio.** Definir productos, reservas, estados y la tabla de políticas de las tres categorías, sin depender de Spring.
 - [ ] **3. Implementar almacenamiento en memoria.** Guardar productos, stock, reservas y registros de pedidos. La fábrica deberá crear un inventario vacío y funcionar sin arrancar Spring.
 - [ ] **4. Implementar productos y stock.** Registro, reabastecimiento, disponibilidad y validaciones; rechazar SKU duplicados e identificadores inválidos y respetar las excepciones del contrato.
 - [ ] **5. Implementar reservas e idempotencia.** Aplicar límites y disponibilidad, devolver reservas originales ante reintentos y rechazar cambios de datos. Los rechazos por falta de stock no consumirán el identificador.

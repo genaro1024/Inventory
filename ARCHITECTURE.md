@@ -1,6 +1,6 @@
 # Arquitectura prevista
 
-Diseño técnico acordado. La base de Spring Boot y los paquetes de las capas están preparados; las funcionalidades restantes siguen pendientes. Las reglas están en [BUSINESS_RULES.md](BUSINESS_RULES.md), las decisiones y limitaciones en [DECISIONS.md](DECISIONS.md), y el avance en [TASKS.md](TASKS.md).
+Diseño técnico acordado. La base de Spring Boot y el modelo de dominio están preparados; el almacenamiento y los casos de uso del servicio siguen pendientes. Las reglas están en [BUSINESS_RULES.md](BUSINESS_RULES.md), las decisiones y limitaciones en [DECISIONS.md](DECISIONS.md), y el avance en [TASKS.md](TASKS.md).
 
 ## Organización
 
@@ -24,13 +24,23 @@ Las dependencias apuntarán hacia el dominio. Los controladores no contendrán r
 - `com.store.inventory.configuration`: configuración y ensamblaje.
 - `com.store.inventory.api`: contrato existente, sin cambios.
 
-Los paquetes de las capas se documentan con `package-info.java`; sus clases se agregarán en las siguientes tareas. Maven utiliza Spring Boot 4.1.1 y compila para Java 21.
+Los paquetes de las capas se documentan con `package-info.java`. Maven utiliza Spring Boot 4.1.1 y compila para Java 21.
+
+### Modelo de dominio
+
+- `Product` y `Category`: identidad del producto y su categoría, independientes del enum público.
+- `ReservationPolicy` y `CategoryPolicies`: duración y límite de pedidos en una tabla inmutable.
+- `OrderReservation` y `ReservationState`: datos inmutables de la reserva y transiciones entre activa, confirmada y vencida. Las transiciones reciben un `Instant`; el servicio proporcionará el tiempo mediante su `Clock`.
+- `OrderLimitViolationException`: error de dominio con el contexto del límite excedido; el adaptador del servicio lo traducirá a la excepción del contrato público.
+
+El modelo no mantiene almacenamiento, comprueba stock ni realiza notificaciones. Una transición devuelve una nueva reserva; los casos de uso deberán guardar ese resultado. Se evaluará la disponibilidad y coordinarán los cambios de stock al implementar el servicio.
 
 ### Verificación de la base
 
 Requiere JDK 21 y Maven 3.6.3 o posterior; `JAVA_HOME` debe apuntar al JDK.
 
 - `mvn -Dtest=InventoryApplicationTest test`: comprueba el arranque del servidor en un puerto aleatorio.
+- `mvn "-Dtest=com.store.inventory.domain.*Test" test`: ejecuta las pruebas del dominio sin arrancar Spring ni esperar tiempo real.
 - `mvn spring-boot:run`: inicia la aplicación base; todavía no expone los endpoints de inventario.
 - `mvn test`: ejecuta todos los tests. Los tres originales aún fallan porque `Inventory.create(...)` conserva su `TODO`; se resolverán al implementar el servicio.
 
