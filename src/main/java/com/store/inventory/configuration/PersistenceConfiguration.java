@@ -3,6 +3,7 @@ package com.store.inventory.configuration;
 import com.store.inventory.domain.repository.ProductInventoryRepository;
 import com.store.inventory.domain.repository.ReservationRepository;
 import com.store.inventory.domain.repository.ReservationSettlementRepository;
+import com.store.inventory.domain.repository.StockAlertRepository;
 import com.store.inventory.infrastructure.jpa.JpaInventoryPersistence;
 import com.store.inventory.application.InventoryOperationExecutor;
 import jakarta.persistence.EntityManagerFactory;
@@ -35,5 +36,10 @@ public class PersistenceConfiguration {
     @Bean
     InventoryOperationExecutor inventoryOperationExecutor(JpaInventoryPersistence persistence) {
         return persistence.operations();
+    }
+
+    @Bean
+    StockAlertRepository stockAlertRepository(JpaInventoryPersistence persistence) {
+        return persistence.alerts();
     }
 }

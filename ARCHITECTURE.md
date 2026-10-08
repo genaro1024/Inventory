@@ -1,6 +1,6 @@
 # Arquitectura prevista
 
-Diseño técnico acordado. La base de Spring Boot, el dominio, H2/JPA y las operaciones de inventario, reservas, confirmaciones y vencimientos están implementados. Notificaciones y API REST siguen pendientes. Las reglas están en [BUSINESS_RULES.md](BUSINESS_RULES.md), las decisiones y limitaciones en [DECISIONS.md](DECISIONS.md), y el avance en [TASKS.md](TASKS.md).
+Diseño técnico acordado. La base de Spring Boot, el dominio, H2/JPA, las operaciones de inventario y las notificaciones con reintentos y DLQ están implementados. La API REST sigue pendiente. Las reglas están en [BUSINESS_RULES.md](BUSINESS_RULES.md), las decisiones y limitaciones en [DECISIONS.md](DECISIONS.md), y el avance en [TASKS.md](TASKS.md).
 
 ## Organización
 
@@ -78,7 +78,7 @@ La prueba de arranque requiere conexiones locales habilitadas en el entorno de e
 
 ## Estado y consistencia
 
-- Productos, stock, reservas y registros de pedidos se guardan en H2 en memoria; avisos y DLQ usarán la misma base al implementarse. Reiniciar perderá los datos y el historial de idempotencia.
+- Productos, stock, reservas, registros de pedidos, avisos y DLQ se guardan en H2 en memoria. Reiniciar perderá los datos y el historial de idempotencia.
 - El estado de cada producto se coordinará para que comprobar disponibilidad y modificar unidades sea una operación atómica.
 - El registro de pedidos también protegerá la unicidad de `orderId`, incluso entre solicitudes de productos distintos.
 - Las reservas tendrán estados activa, confirmada y vencida. Se conservará la información necesaria para reconocer reintentos.
@@ -88,14 +88,20 @@ La coordinación se aplica a quienes compartan una base y ejecuten los casos de 
 
 ## Notificaciones
 
-Las operaciones de inventario determinarán cuándo corresponde un aviso. Su entrega ocurrirá después de terminar la transacción y liberar los bloqueos mediante el listener proporcionado; los callbacks transaccionales solo podrán realizar trabajo de persistencia. La implementación de avisos sigue pendiente de las tareas 8 a 10; no integraremos directamente un proveedor de correo.
+`LowStockPolicy` determina cuándo corresponde un aviso. `StockAlertNotifications` guarda el aviso en la tabla `stock_alerts` dentro de la transacción de inventario y lo entrega después del commit mediante `StockAlertDelivery`. El listener se invoca sin bloqueos de producto, de acceso a la base ni del ciclo de vida del servicio. No integramos directamente un proveedor de correo.
 
-- Después del intento inicial, hasta cinco reintentos en segundo plano: 2, 4, 8, 16 y 32 segundos, con jitter de ±20 %.
-- Un aviso pendiente no generará entregas adicionales por operaciones posteriores. Una entrega exitosa cancelará los reintentos restantes.
-- Reabastecer invalidará los reintentos pendientes del aviso anterior y podrá generar uno actualizado según las reglas de negocio.
-- Agotar los intentos enviará el aviso a la DLQ, sin revertir el inventario. Se conservarán sus datos, intentos y último error.
+Cada producto mantiene en H2 un ciclo de reabastecimiento y una marca de aviso creado. Esto permite generar un aviso por ciclo incluso con varios servicios, mientras el estado de entrega registra si realmente llegó al listener.
 
-La DLQ se guardará en H2 en memoria. Los avisos deberán comprobarse antes de reprocesarlos para evitar entregar información desactualizada. Una llamada ya iniciada no puede retirarse y los reintentos no garantizan una única entrega externa.
+- El intento inicial es inmediato y puede ejecutar el listener en el hilo que llamó al servicio. Los cinco reintentos usan `RetryScheduler` en segundo plano: 2, 4, 8, 16 y 32 segundos, con jitter independiente de ±20 %.
+- Los estados son pendiente, en entrega, esperando reintento, entregado, cancelado y DLQ. El número esperado de intento protege contra ejecuciones duplicadas de distintos trabajadores.
+- Reabastecer cancela los avisos pendientes anteriores en H2 y sus tareas locales. Las tareas de otros servicios también consultan el estado guardado antes de llamar al listener.
+- Una entrega exitosa detiene los reintentos. Seis fallos, contando el intento inicial, dejan el aviso en DLQ con sus datos, cantidad de intentos y último error, sin revertir el inventario.
+
+La DLQ se consulta mediante `StockAlertRepository.deadLetters()`. `StockAlertDispatcher.reprocess(id)` solo permite reprocesar avisos del ciclo vigente; un fallo de un ciclo anterior permanece como historial. El reprocesamiento manual abre una nueva ronda de intentos. `resumePending()` permite retomar avisos pendientes o en espera guardados en H2.
+
+El cierre cancela las tareas locales y evita nuevos accesos del dispatcher a la base. Una llamada al listener ya iniciada puede terminar, pero no podrá reiniciar reintentos cancelados. Antes de producción se necesita recuperación de entregas interrumpidas en estado "en entrega" y deduplicación en el receptor; los reintentos no garantizan una única entrega externa.
+
+Las pruebas usan reloj y planificador manuales para comprobar tiempos, cancelaciones, DLQ y concurrencia sin esperas reales largas. Los fallos de entrega se registran en `WARN` y el paso a DLQ en `ERROR`, con diagnóstico técnico.
 
 ## HTTP y observabilidad
 

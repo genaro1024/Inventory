@@ -7,6 +7,9 @@ import java.util.UUID;
 import java.sql.SQLException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.hibernate.cfg.Configuration;
+import com.store.inventory.api.StockAlertListener;
+import com.store.inventory.application.notification.StockAlertNotifications;
+import java.time.Clock;
 
 /** Standalone persistence bootstrap used by the public factory, without a Spring context. */
 public final class H2InventoryDatabase implements AutoCloseable {
@@ -37,6 +40,7 @@ public final class H2InventoryDatabase implements AutoCloseable {
         var configuration = new Configuration()
                 .addAnnotatedClass(ProductInventoryEntity.class)
                 .addAnnotatedClass(ReservationEntity.class)
+                .addAnnotatedClass(StockAlertEntity.class)
                 .setProperty("hibernate.hbm2ddl.auto", "create-drop")
                 .setProperty("hibernate.show_sql", "false");
         configuration.getProperties().put("hibernate.connection.datasource", dataSource);
@@ -61,6 +65,14 @@ public final class H2InventoryDatabase implements AutoCloseable {
 
     public JpaInventoryOperationExecutor operations() {
         return persistence.operations();
+    }
+
+    public JpaStockAlertRepository alerts() {
+        return persistence.alerts();
+    }
+
+    public StockAlertNotifications notifications(Clock clock, StockAlertListener listener) {
+        return persistence.notifications(clock, listener);
     }
 
     @Override

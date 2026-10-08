@@ -14,9 +14,9 @@ Checklist basada en [DECISIONS.md](DECISIONS.md). Las tareas completadas se marc
 
 ## Notificaciones
 
-- [ ] **8. Implementar avisos de stock bajo.** Notificar mediante `StockAlertListener` con 5 unidades disponibles o menos, una vez por ciclo de reabastecimiento. Registrar productos sin stock no generará avisos.
-- [ ] **9. Implementar reintentos y cancelaciones.** Guardar avisos y su estado de entrega en H2. Ejecutar hasta cinco reintentos en segundo plano con esperas de 2, 4, 8, 16 y 32 segundos y jitter de ±20 %. Evitar avisos pendientes duplicados y cancelarlos al reabastecer, evaluando la disponibilidad actual.
-- [ ] **10. Implementar la DLQ en H2.** Guardar avisos que agoten los intentos con contexto y último error, detener sus reintentos y comprobar su vigencia antes de reprocesarlos. Los fallos de avisos no revertirán el inventario.
+- [x] **8. Implementar avisos de stock bajo.** Notificar mediante `StockAlertListener` con 5 unidades disponibles o menos, una vez por ciclo de reabastecimiento. Registrar productos sin stock no generará avisos.
+- [x] **9. Implementar reintentos y cancelaciones.** Guardar avisos y su estado de entrega en H2. Ejecutar hasta cinco reintentos en segundo plano con esperas de 2, 4, 8, 16 y 32 segundos y jitter de ±20 %. Evitar avisos pendientes duplicados y cancelarlos al reabastecer, evaluando la disponibilidad actual.
+- [x] **10. Implementar la DLQ en H2.** Guardar avisos que agoten los intentos con contexto y último error, detener sus reintentos y comprobar su vigencia antes de reprocesarlos. Los fallos de avisos no revertirán el inventario.
 
 ## API y observabilidad
 
@@ -39,5 +39,5 @@ Checklist basada en [DECISIONS.md](DECISIONS.md). Las tareas completadas se marc
 
 - Validar con el equipo la confirmación idempotente, cuya interpretación difiere de la lectura literal del contrato.
 - Migrar de H2 en memoria a una base persistente con migraciones de esquema, retención de pedidos y atomicidad y unicidad entre instancias.
-- Persistir avisos y DLQ, deduplicar entregas y definir monitoreo y reprocesamiento.
+- Mantener avisos y DLQ en una base persistente, deduplicar entregas en el receptor y definir monitoreo y recuperación de entregas interrumpidas.
 - Definir el registro y el entorno de despliegue antes de habilitar publicación o despliegue efectivos.

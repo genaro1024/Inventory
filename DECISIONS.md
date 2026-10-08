@@ -52,13 +52,13 @@ Las operaciones serán atómicas por producto mediante transacciones y bloqueos 
 
 ### Almacenamiento y seed
 
-Usaremos H2 en memoria mediante JPA para productos, stock, reservas y registros de pedidos. Los avisos y la DLQ también se guardarán en H2 cuando se implementen. Las entidades JPA estarán separadas del dominio. Al reiniciar se perderán los datos, incluida la protección contra duplicados.
+Usaremos H2 en memoria mediante JPA para productos, stock, reservas, registros de pedidos, avisos y DLQ. Las entidades JPA estarán separadas del dominio. Al reiniciar se perderán los datos, incluida la protección contra duplicados.
 
 La seed se implementará posteriormente en la tarea 14 y se cargará explícitamente en H2 mediante la API Java, con las tres categorías, distintas cantidades de stock, reservas activas y pedidos confirmados. Usará un reloj controlado y un listener de demostración. `Inventory.create(...)` seguirá creando un inventario vacío en una base H2 aislada, sin iniciar Spring.
 
 ### Entrega de avisos
 
-Después del intento inicial habrá hasta cinco reintentos en segundo plano: 2, 4, 8, 16 y 32 segundos, con jitter independiente de ±20 %. No bloquearemos la respuesta del servicio ni duplicaremos un aviso pendiente. Una entrega exitosa cancela los reintentos restantes.
+El aviso se guardará junto con la operación de inventario y el intento inicial se hará inmediatamente después del commit, fuera de los bloqueos. Habrá hasta cinco reintentos en segundo plano: 2, 4, 8, 16 y 32 segundos, con jitter independiente de ±20 %. Sus esperas no bloquearán la respuesta del servicio ni duplicarán un aviso pendiente. Una entrega exitosa cancela los reintentos restantes.
 
 Si se agotan los intentos, el aviso pasa a la DLQ con sus datos, cantidad de intentos y último error. No se considera entregado ni reinicia sus reintentos automáticamente. Antes de reprocesarlo, se comprobará si quedó desactualizado por un reabastecimiento.
 

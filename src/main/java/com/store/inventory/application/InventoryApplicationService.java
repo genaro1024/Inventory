@@ -5,7 +5,8 @@ import com.store.inventory.api.InsufficientStockException;
 import com.store.inventory.api.OrderLimitExceededException;
 import com.store.inventory.api.ProductCategory;
 import com.store.inventory.api.Reservation;
-import com.store.inventory.api.StockAlertListener;
+import com.store.inventory.application.notification.StockAlertNotifications;
+import com.store.inventory.domain.notification.AlertEvaluation;
 import com.store.inventory.domain.Category;
 import com.store.inventory.domain.OrderLimitViolationException;
 import com.store.inventory.domain.OrderReservation;
@@ -26,7 +27,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
- * Application entry point. Notification use cases are still pending.
+ * Inventory operations and transactional preparation of stock alerts.
  */
 public final class InventoryApplicationService implements InventoryService, AutoCloseable {
 
@@ -37,27 +38,34 @@ public final class InventoryApplicationService implements InventoryService, Auto
     private final ReservationSettlementRepository settlements;
     private final InventoryOperationExecutor operations;
     private final Clock clock;
-    private final StockAlertListener alertListener;
+    private final StockAlertNotifications notifications;
     private final AtomicBoolean closed = new AtomicBoolean();
     private final Cleaner.Cleanable resources;
     private final ReentrantReadWriteLock lifecycle = new ReentrantReadWriteLock();
 
     public InventoryApplicationService(ProductInventoryRepository inventories,
             ReservationRepository reservations, ReservationSettlementRepository settlements,
-            InventoryOperationExecutor operations, Clock clock, StockAlertListener alertListener) {
-        this(inventories, reservations, settlements, operations, clock, alertListener, () -> { });
+            InventoryOperationExecutor operations, Clock clock, StockAlertNotifications notifications) {
+        this(inventories, reservations, settlements, operations, clock, notifications, () -> { });
     }
 
     public InventoryApplicationService(ProductInventoryRepository inventories,
             ReservationRepository reservations, ReservationSettlementRepository settlements,
-            InventoryOperationExecutor operations, Clock clock, StockAlertListener alertListener, Runnable releaseResources) {
+            InventoryOperationExecutor operations, Clock clock, StockAlertNotifications notifications, Runnable releaseResources) {
         this.inventories = Objects.requireNonNull(inventories, "Inventory repository is required");
         this.reservations = Objects.requireNonNull(reservations, "Reservation repository is required");
         this.settlements = Objects.requireNonNull(settlements, "Settlement repository is required");
         this.operations = Objects.requireNonNull(operations, "Operation executor is required");
         this.clock = Objects.requireNonNull(clock, "Clock is required");
-        this.alertListener = Objects.requireNonNull(alertListener, "Alert listener is required");
-        resources = CLEANER.register(this, Objects.requireNonNull(releaseResources, "Resource cleanup is required"));
+        this.notifications = Objects.requireNonNull(notifications, "Notifications are required");
+        var cleanup = Objects.requireNonNull(releaseResources, "Resource cleanup is required");
+        resources = CLEANER.register(this, () -> {
+            try {
+                notifications.close();
+            } finally {
+                cleanup.run();
+            }
+        });
     }
 
     @Override
@@ -83,7 +91,7 @@ public final class InventoryApplicationService implements InventoryService, Auto
         if (quantity <= 0) {
             throw new IllegalArgumentException("Quantity must be positive");
         }
-        productOperation(sku, lockedInventory -> {
+        productOperation(sku, true, lockedInventory -> {
             if (lockedInventory.isEmpty()) {
                 throw new IllegalArgumentException("Product is not registered: " + sku);
             }
@@ -140,10 +148,9 @@ public final class InventoryApplicationService implements InventoryService, Auto
     public void confirm(String orderId) {
         ensureOpen();
         validateOrderId(orderId);
-        withOpenService(() -> {
-            var original = reservations.findByOrderId(orderId)
-                    .orElseThrow(() -> new IllegalStateException("Order has no active reservation"));
-            return productOperation(original.sku(), lockedInventory -> {
+        var original = withOpenService(() -> reservations.findByOrderId(orderId)
+                .orElseThrow(() -> new IllegalStateException("Order has no active reservation")));
+        productOperation(original.sku(), lockedInventory -> {
                 while (true) {
                     var now = clock.instant();
                     expireReservations(original.sku(), now);
@@ -161,7 +168,6 @@ public final class InventoryApplicationService implements InventoryService, Auto
                         return null;
                     }
                 }
-            });
         });
     }
 
@@ -228,24 +234,33 @@ public final class InventoryApplicationService implements InventoryService, Auto
     }
 
     private <T> T productOperation(String sku, Function<Optional<ProductInventory>, T> operation) {
-        return withOpenService(() -> {
-            var result = operations.execute(sku, inventory -> {
+        return productOperation(sku, false, operation);
+    }
+
+    private <T> T productOperation(String sku, boolean replenished,
+            Function<Optional<ProductInventory>, T> operation) {
+        var result = withOpenService(() -> operations.execute(sku, inventory -> {
                 try {
-                    return new OperationResult<T>(operation.apply(inventory), null);
+                    var value = operation.apply(inventory);
+                    var current = inventories.findBySku(sku);
+                    var now = clock.instant();
+                    var evaluation = current.isEmpty() ? AlertEvaluation.none()
+                            : notifications.evaluate(sku, availableUnits(current.get(), now), replenished, now);
+                    return new OperationResult<T>(value, null, evaluation);
                 } catch (IllegalArgumentException | IllegalStateException
                         | InsufficientStockException | OrderLimitExceededException rejection) {
                     // Commit expiration cleanup for an expected rejection, without creating a sale or reservation.
-                    return new OperationResult<T>(null, rejection);
+                    return new OperationResult<T>(null, rejection, AlertEvaluation.none());
                 }
-            });
-            if (result.rejection() != null) {
-                throw result.rejection();
-            }
-            return result.value();
-        });
+            }));
+        if (result.rejection() != null) {
+            throw result.rejection();
+        }
+        notifications.afterCommit(sku, replenished, result.evaluation());
+        return result.value();
     }
 
-    private record OperationResult<T>(T value, RuntimeException rejection) {
+    private record OperationResult<T>(T value, RuntimeException rejection, AlertEvaluation evaluation) {
     }
 
     private static void validateSku(String sku) {

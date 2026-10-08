@@ -42,10 +42,10 @@ class InventoryConcurrencyTest {
     void initializeServicesWithIndependentContextsOnTheSameDatabase() {
         database = new H2InventoryDatabase();
         first = new InventoryApplicationService(database.inventories(), database.reservations(), database.settlements(),
-                database.operations(), CLOCK, (sku, available) -> { });
+                database.operations(), CLOCK, database.notifications(CLOCK, (sku, available) -> { }));
         var independent = new JpaInventoryPersistence(database.entityManagerFactory());
         second = new InventoryApplicationService(independent.inventories(), independent.reservations(),
-                independent.settlements(), independent.operations(), CLOCK, (sku, available) -> { });
+                independent.settlements(), independent.operations(), CLOCK, independent.notifications(CLOCK, (sku, available) -> { }));
         first.registerProduct("SKU-1", ProductCategory.STANDARD);
         first.registerProduct("SKU-2", ProductCategory.STANDARD);
         first.addStock("SKU-1", 10);
@@ -239,7 +239,7 @@ class InventoryConcurrencyTest {
 
     private InventoryApplicationService serviceWith(InventoryOperationExecutor operations, Runnable cleanup) {
         return new InventoryApplicationService(database.inventories(), database.reservations(), database.settlements(),
-                operations, CLOCK, (sku, available) -> { }, cleanup);
+                operations, CLOCK, database.notifications(CLOCK, (sku, available) -> { }), cleanup);
     }
 
     private static InventoryOperationExecutor paused(InventoryOperationExecutor delegate,

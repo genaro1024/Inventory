@@ -25,6 +25,10 @@ public class ProductInventoryEntity {
 
     @Column(name = "on_hand", nullable = false)
     private int onHand;
+    @Column(name = "stock_cycle", nullable = false)
+    private long stockCycle;
+    @Column(name = "alert_created", nullable = false)
+    private boolean alertCreated;
 
     protected ProductInventoryEntity() {
     }
@@ -37,5 +41,22 @@ public class ProductInventoryEntity {
 
     ProductInventory toDomain() {
         return new ProductInventory(new Product(sku, category), onHand);
+    }
+
+    long stockCycle() {
+        return stockCycle;
+    }
+
+    boolean alertCreated() {
+        return alertCreated;
+    }
+
+    void startStockCycle() {
+        stockCycle = Math.addExact(stockCycle, 1);
+        alertCreated = false;
+    }
+
+    void markAlertCreated() {
+        alertCreated = true;
     }
 }
