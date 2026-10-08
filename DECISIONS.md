@@ -80,6 +80,8 @@ Esta decisión reemplaza el uso de Problem Details: no agregaremos `type`, `titl
 
 Usaremos `400` para entradas inválidas, `409` para conflictos de estado, como stock insuficiente o reservas vencidas, `404` para rutas inexistentes y `500` para errores internos inesperados. Los errores internos tendrán un mensaje genérico; las excepciones, causas, trazas y demás detalles de diagnóstico irán únicamente a logs, asociados al `traceId`.
 
+El registro exitoso responderá `201`; las otras operaciones, `200`. Reabastecer un producto desconocido responderá `404`, aunque consultar su disponibilidad siga devolviendo cero con `200`. Los métodos o formatos HTTP no admitidos conservarán `405`, `406` o `415` con el mismo JSON.
+
 Las entradas inválidas y el registro duplicado usarán `IllegalArgumentException`; confirmar un pedido desconocido o vencido, `IllegalStateException`. El mapeo HTTP distinguirá la causa, no solo la clase de excepción.
 
 ### Pruebas automatizadas

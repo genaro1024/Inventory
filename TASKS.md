@@ -20,9 +20,9 @@ Checklist basada en [DECISIONS.md](DECISIONS.md). Las tareas completadas se marc
 
 ## API y observabilidad
 
-- [ ] **11. Implementar los cinco endpoints REST.** Registrar productos, agregar stock, consultar disponibilidad, reservar y confirmar, delegando en el mismo `InventoryService`.
-- [ ] **12. Unificar respuestas y errores.** Devolver únicamente `success`, `message`, `data` y `traceId` en JSON. Centralizar errores con `@RestControllerAdvice`, cubrir errores de Spring MVC y rutas inexistentes, respetar los estados HTTP y no usar `204`.
-- [ ] **13. Incorporar logs y correlación.** Propagar `traceId` también a tareas en segundo plano, registrar eventos con niveles adecuados y guardar detalles técnicos únicamente en logs, sin datos sensibles ni trazas duplicadas.
+- [x] **11. Implementar los cinco endpoints REST.** Registrar productos, agregar stock, consultar disponibilidad, reservar y confirmar, delegando en el mismo `InventoryService`.
+- [x] **12. Unificar respuestas y errores.** Devolver únicamente `success`, `message`, `data` y `traceId` en JSON. Centralizar errores con `@RestControllerAdvice`, cubrir errores de Spring MVC y rutas inexistentes, respetar los estados HTTP y no usar `204`.
+- [x] **13. Incorporar logs y correlación.** Propagar `traceId` también a tareas en segundo plano, registrar eventos con niveles adecuados y guardar detalles técnicos únicamente en logs, sin datos sensibles ni trazas duplicadas.
 
 ## Pruebas y documentación
 

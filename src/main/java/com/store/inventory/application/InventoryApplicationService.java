@@ -6,6 +6,9 @@ import com.store.inventory.api.OrderLimitExceededException;
 import com.store.inventory.api.ProductCategory;
 import com.store.inventory.api.Reservation;
 import com.store.inventory.application.notification.StockAlertNotifications;
+import com.store.inventory.observability.TraceContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.store.inventory.domain.notification.AlertEvaluation;
 import com.store.inventory.domain.Category;
 import com.store.inventory.domain.OrderLimitViolationException;
@@ -32,6 +35,7 @@ import java.util.function.Supplier;
 public final class InventoryApplicationService implements InventoryService, AutoCloseable {
 
     private static final Cleaner CLEANER = Cleaner.create();
+    private static final Logger LOG = LoggerFactory.getLogger(InventoryApplicationService.class);
 
     private final ProductInventoryRepository inventories;
     private final ReservationRepository reservations;
@@ -73,13 +77,14 @@ public final class InventoryApplicationService implements InventoryService, Auto
         ensureOpen();
         validateSku(sku);
         if (category == null) {
-            throw new IllegalArgumentException("Category is required");
+            throw new InventoryFailures.InvalidInput("Category is required");
         }
         var product = new Product(sku, Category.valueOf(category.name()));
         withOpenService(() -> {
             if (!inventories.insert(new ProductInventory(product, 0))) {
-                throw new IllegalArgumentException("El producto ya existe");
+                throw new InventoryFailures.ProductAlreadyExists();
             }
+            LOG.info("Product registered: sku={} category={}", TraceContext.logIdentifier(sku), category);
             return null;
         });
     }
@@ -89,22 +94,25 @@ public final class InventoryApplicationService implements InventoryService, Auto
         ensureOpen();
         validateSku(sku);
         if (quantity <= 0) {
-            throw new IllegalArgumentException("Quantity must be positive");
+            throw new InventoryFailures.InvalidInput("Quantity must be positive");
         }
-        productOperation(sku, true, lockedInventory -> {
+        try (var trace = TraceContext.ensure()) {
+        var replenished = productOperation(sku, true, lockedInventory -> {
             if (lockedInventory.isEmpty()) {
-                throw new IllegalArgumentException("Product is not registered: " + sku);
+                throw new InventoryFailures.UnknownProduct(sku);
             }
             expireReservations(sku, clock.instant());
             while (true) {
                 var current = inventories.findBySku(sku)
-                        .orElseThrow(() -> new IllegalArgumentException("Product is not registered: " + sku));
+                        .orElseThrow(() -> new InventoryFailures.UnknownProduct(sku));
                 var updated = current.replenish(quantity);
                 if (inventories.replace(current, updated)) {
-                    return null;
+                    return updated;
                 }
             }
         });
+        LOG.info("Stock replenished: sku={} added={} onHand={}", TraceContext.logIdentifier(sku), quantity, replenished.onHand());
+        }
     }
 
     @Override
@@ -113,14 +121,15 @@ public final class InventoryApplicationService implements InventoryService, Auto
         validateOrderId(orderId);
         validateSku(sku);
         if (quantity <= 0) {
-            throw new IllegalArgumentException("Quantity must be positive");
+            throw new InventoryFailures.InvalidInput("Quantity must be positive");
         }
-        return productOperation(sku, lockedInventory -> {
+        try (var trace = TraceContext.ensure()) {
+        var outcome = productOperation(sku, lockedInventory -> {
             var now = clock.instant();
             expireReservations(sku, now);
             var existing = reservations.findByOrderId(orderId);
             if (existing.isPresent()) {
-                return reuseReservation(existing.get(), sku, quantity, now);
+                return new ReservationOutcome(reuseReservation(existing.get(), sku, quantity, now), false);
             }
             var inventory = lockedInventory
                     .orElseThrow(() -> new InsufficientStockException(sku, quantity, 0));
@@ -138,37 +147,52 @@ public final class InventoryApplicationService implements InventoryService, Auto
                 // The primary key also protects order IDs competing across different SKUs.
                 var winner = reservations.findByOrderId(orderId)
                         .orElseThrow(() -> new IllegalStateException("Conflicting order record is missing"));
-                return reuseReservation(winner, sku, quantity, now);
+                return new ReservationOutcome(reuseReservation(winner, sku, quantity, now), false);
             }
-            return toResponse(reservation);
+            return new ReservationOutcome(toResponse(reservation), true);
         });
+        if (outcome.created()) {
+            LOG.info("Reservation created: order={} sku={} quantity={} expiresAt={}",
+                    TraceContext.logIdentifier(orderId), TraceContext.logIdentifier(sku), quantity, outcome.response().expiresAt());
+        } else {
+            LOG.debug("Reservation replay: order={} sku={}", TraceContext.logIdentifier(orderId), TraceContext.logIdentifier(sku));
+        }
+        return outcome.response();
+        }
     }
 
     @Override
     public void confirm(String orderId) {
         ensureOpen();
         validateOrderId(orderId);
+        try (var trace = TraceContext.ensure()) {
         var original = withOpenService(() -> reservations.findByOrderId(orderId)
-                .orElseThrow(() -> new IllegalStateException("Order has no active reservation")));
-        productOperation(original.sku(), lockedInventory -> {
+                .orElseThrow(() -> new InventoryFailures.NoActiveReservation(orderId, false)));
+        boolean sold = productOperation(original.sku(), lockedInventory -> {
                 while (true) {
                     var now = clock.instant();
                     expireReservations(original.sku(), now);
                     var reservation = reservations.findByOrderId(orderId)
-                            .orElseThrow(() -> new IllegalStateException("Order has no active reservation"));
+                            .orElseThrow(() -> new InventoryFailures.NoActiveReservation(orderId, false));
                     if (reservation.stateAt(now) == ReservationState.CONFIRMED) {
-                        return null;
+                        return false;
                     }
                     if (reservation.stateAt(now) == ReservationState.EXPIRED) {
-                        throw new IllegalStateException("Order has no active reservation");
+                        throw new InventoryFailures.NoActiveReservation(orderId, true);
                     }
                     var inventory = lockedInventory
                             .orElseThrow(() -> new IllegalStateException("Reserved product is missing"));
                     if (settlements.confirm(reservation, inventory, now)) {
-                        return null;
+                        return true;
                     }
                 }
         });
+        if (sold) {
+            LOG.info("Order confirmed: order={} sku={}", TraceContext.logIdentifier(orderId), TraceContext.logIdentifier(original.sku()));
+        } else {
+            LOG.debug("Confirmation replay: order={}", TraceContext.logIdentifier(orderId));
+        }
+        }
     }
 
     @Override
@@ -200,7 +224,10 @@ public final class InventoryApplicationService implements InventoryService, Auto
         for (var reservation : reservations.findBySku(sku)) {
             var expired = reservation.expireAt(now);
             if (expired != reservation) {
-                reservations.replace(reservation, expired);
+                if (reservations.replace(reservation, expired)) {
+                    LOG.debug("Expiration staged: order={} sku={} expiresAt={}", TraceContext.logIdentifier(reservation.orderId()),
+                            TraceContext.logIdentifier(sku), reservation.expiresAt());
+                }
             }
         }
     }
@@ -225,7 +252,7 @@ public final class InventoryApplicationService implements InventoryService, Auto
 
     private <T> T withOpenService(Supplier<T> operation) {
         lifecycle.readLock().lock();
-        try {
+        try (var trace = TraceContext.ensure()) {
             ensureOpen();
             return operation.get();
         } finally {
@@ -239,6 +266,7 @@ public final class InventoryApplicationService implements InventoryService, Auto
 
     private <T> T productOperation(String sku, boolean replenished,
             Function<Optional<ProductInventory>, T> operation) {
+        try (var trace = TraceContext.ensure()) {
         var result = withOpenService(() -> operations.execute(sku, inventory -> {
                 try {
                     var value = operation.apply(inventory);
@@ -258,29 +286,33 @@ public final class InventoryApplicationService implements InventoryService, Auto
         }
         notifications.afterCommit(sku, replenished, result.evaluation());
         return result.value();
+        }
     }
 
     private record OperationResult<T>(T value, RuntimeException rejection, AlertEvaluation evaluation) {
     }
 
+    private record ReservationOutcome(Reservation response, boolean created) {
+    }
+
     private static void validateSku(String sku) {
         if (sku == null || sku.isBlank()) {
-            throw new IllegalArgumentException("SKU must not be blank");
+            throw new InventoryFailures.InvalidInput("SKU must not be blank");
         }
     }
 
     private static void validateOrderId(String orderId) {
         if (orderId == null || orderId.isBlank()) {
-            throw new IllegalArgumentException("Order ID must not be blank");
+            throw new InventoryFailures.InvalidInput("Order ID must not be blank");
         }
     }
 
     private static Reservation reuseReservation(OrderReservation reservation, String sku, int quantity, Instant now) {
         if (!reservation.matches(sku, quantity)) {
-            throw new IllegalArgumentException("Order ID already belongs to a different product or quantity");
+            throw new InventoryFailures.OrderConflict();
         }
         if (reservation.stateAt(now) == ReservationState.EXPIRED) {
-            throw new IllegalStateException("Reservation has expired; use a new order ID");
+            throw new InventoryFailures.NoActiveReservation(reservation.orderId(), true);
         }
         return toResponse(reservation);
     }

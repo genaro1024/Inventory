@@ -5,6 +5,7 @@ import com.store.inventory.domain.notification.AlertRetryPolicy;
 import com.store.inventory.domain.notification.StockAlert;
 import com.store.inventory.domain.notification.StockAlertState;
 import com.store.inventory.domain.repository.StockAlertRepository;
+import com.store.inventory.observability.TraceContext;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.Objects;
@@ -50,15 +51,17 @@ public final class StockAlertDelivery implements StockAlertDispatcher {
         try {
             var alert = access(() -> alerts.findById(id), Optional.<StockAlert>empty());
             alert.filter(value -> value.state() == StockAlertState.PENDING)
-                    .ifPresent(value -> attempt(value.id(), value.attempts()));
+                    .ifPresent(this::attempt);
         } catch (RuntimeException failure) {
             LOG.error("Could not dispatch stock alert {}", id, failure);
         }
     }
 
-    private void attempt(UUID id, int expectedAttempts) {
+    private void attempt(StockAlert expected) {
+        var id = expected.id();
+        try (var trace = TraceContext.open(expected.traceId())) {
         try {
-            var claimed = access(() -> alerts.claim(id, expectedAttempts), Optional.<StockAlert>empty());
+            var claimed = access(() -> alerts.claim(id, expected.attempts()), Optional.<StockAlert>empty());
             if (claimed.isEmpty() || closed) {
                 return;
             }
@@ -74,21 +77,26 @@ public final class StockAlertDelivery implements StockAlertDispatcher {
                 if (stored.isPresent()) {
                     if (stored.get().state() == StockAlertState.DEAD_LETTER) {
                         LOG.error("Stock alert {} for {} moved to DLQ after {} attempts",
-                                id, alert.sku(), alert.attempts(), failure);
+                                id, TraceContext.logIdentifier(alert.sku()), alert.attempts(), failure);
                     } else {
-                        LOG.warn("Stock alert {} for {} failed on attempt {}", id, alert.sku(), alert.attempts(), failure);
+                        LOG.warn("Stock alert {} for {} failed on attempt {}", id,
+                                TraceContext.logIdentifier(alert.sku()), alert.attempts(), failure);
                         schedule(stored.get(), delay.orElseThrow());
                     }
                 }
                 return;
             }
-            access(() -> alerts.delivered(id, alert.attempts()), false);
+            if (access(() -> alerts.delivered(id, alert.attempts()), false)) {
+                LOG.info("Stock alert delivered: id={} sku={} attempt={}", id, TraceContext.logIdentifier(alert.sku()), alert.attempts());
+            }
         } catch (RuntimeException failure) {
             LOG.error("Could not process stock alert {}", id, failure);
+        }
         }
     }
 
     private void schedule(StockAlert alert, Duration delay) {
+        try (var trace = TraceContext.open(alert.traceId())) {
         databaseAccess.readLock().lock();
         try {
             if (closed || pending.containsKey(alert.id())) {
@@ -101,15 +109,17 @@ public final class StockAlertDelivery implements StockAlertDispatcher {
             try {
                 task.attach(scheduler.schedule(delay, () -> {
                     if (pending.remove(alert.id(), task)) {
-                        attempt(alert.id(), alert.attempts());
+                        attempt(alert);
                     }
                 }));
+                LOG.debug("Stock alert retry scheduled: id={} delay={} attempt={}", alert.id(), delay, alert.attempts() + 1);
             } catch (RuntimeException failure) {
                 pending.remove(alert.id(), task);
                 LOG.error("Could not schedule retry for alert {}; it remains queued in H2", alert.id(), failure);
             }
         } finally {
             databaseAccess.readLock().unlock();
+        }
         }
     }
 
@@ -118,6 +128,7 @@ public final class StockAlertDelivery implements StockAlertDispatcher {
         pending.forEach((id, task) -> {
             if (task.sku.equals(sku) && task.cycle < cycle && pending.remove(id, task)) {
                 task.cancel();
+                LOG.debug("Stock alert retry cancelled: id={} sku={} cycle={}", id, TraceContext.logIdentifier(sku), task.cycle);
             }
         });
     }
@@ -129,6 +140,7 @@ public final class StockAlertDelivery implements StockAlertDispatcher {
         }
         boolean queued = access(() -> alerts.requeueDeadLetter(id), false);
         if (queued) {
+            LOG.info("Dead letter requeued: id={}", id);
             dispatch(id);
         }
         return queued;
@@ -139,7 +151,7 @@ public final class StockAlertDelivery implements StockAlertDispatcher {
         var awaiting = access(alerts::awaitingDelivery, List.<StockAlert>of());
         for (var alert : awaiting) {
             if (alert.state() == StockAlertState.PENDING) {
-                attempt(alert.id(), alert.attempts());
+                attempt(alert);
             } else {
                 var remaining = Duration.between(clock.instant(), alert.nextAttemptAt());
                 schedule(alert, remaining.isNegative() ? Duration.ZERO : remaining);

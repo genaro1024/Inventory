@@ -25,7 +25,7 @@ public record ProductInventory(Product product, int onHand) {
         try {
             return new ProductInventory(product, Math.addExact(onHand, quantity));
         } catch (ArithmeticException overflow) {
-            throw new IllegalArgumentException("Stock exceeds the supported maximum", overflow);
+            throw new StockCapacityExceededException(overflow);
         }
     }
 

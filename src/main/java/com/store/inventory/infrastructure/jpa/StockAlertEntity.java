@@ -17,6 +17,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
+import com.store.inventory.observability.TraceContext;
 
 @Entity
 @Table(name = "stock_alerts", indexes = {
@@ -50,6 +51,8 @@ public class StockAlertEntity {
     @Lob
     @Column(name = "last_error")
     private String lastError;
+    @Column(name = "trace_id", nullable = false, length = 64)
+    private String traceId;
 
     protected StockAlertEntity() {
     }
@@ -61,10 +64,11 @@ public class StockAlertEntity {
         this.cycle = cycle;
         createdAt = now;
         state = StockAlertState.PENDING;
+        traceId = TraceContext.currentOrCreate();
     }
 
     StockAlert toDomain() {
-        return new StockAlert(id, sku, availableUnits, cycle, createdAt, state, attempts, nextAttemptAt, lastError);
+        return new StockAlert(id, sku, availableUnits, cycle, createdAt, state, attempts, nextAttemptAt, lastError, traceId);
     }
 
     void cancel() {

@@ -1,6 +1,6 @@
 # Arquitectura prevista
 
-Diseño técnico acordado. La base de Spring Boot, el dominio, H2/JPA, las operaciones de inventario y las notificaciones con reintentos y DLQ están implementados. La API REST sigue pendiente. Las reglas están en [BUSINESS_RULES.md](BUSINESS_RULES.md), las decisiones y limitaciones en [DECISIONS.md](DECISIONS.md), y el avance en [TASKS.md](TASKS.md).
+Diseño técnico acordado. La base de Spring Boot, el dominio, H2/JPA, el inventario, las notificaciones, la API REST y la correlación de logs están implementados. Las reglas están en [BUSINESS_RULES.md](BUSINESS_RULES.md), las decisiones y limitaciones en [DECISIONS.md](DECISIONS.md), y el avance en [TASKS.md](TASKS.md).
 
 ## Organización
 
@@ -64,7 +64,7 @@ Requiere JDK 21 y Maven 3.6.3 o posterior; `JAVA_HOME` debe apuntar al JDK.
 - `mvn -Dtest=InventoryApplicationTest test`: comprueba el arranque del servidor en un puerto aleatorio.
 - `mvn "-Dtest=com.store.inventory.domain.*Test" test`: ejecuta las pruebas del dominio sin arrancar Spring ni esperar tiempo real.
 - `mvn "-Dtest=com.store.inventory.infrastructure.jpa.*Test,InventoryApplicationServiceTest,InventoryFactoryTest" test`: verifica los adaptadores con H2 real, la disponibilidad y la fábrica.
-- `mvn spring-boot:run`: inicia la aplicación base; todavía no expone los endpoints de inventario.
+- `mvn spring-boot:run`: inicia la API en `http://localhost:8080`, con H2 vacía. La seed queda para la tarea 14.
 - `mvn test`: ejecuta todos los tests, incluidos los tres originales, que ya pasan.
 
 La prueba de arranque requiere conexiones locales habilitadas en el entorno de ejecución.
@@ -105,11 +105,33 @@ Las pruebas usan reloj y planificador manuales para comprobar tiempos, cancelaci
 
 ## HTTP y observabilidad
 
-El adaptador REST expondrá las cinco operaciones documentadas en `DECISIONS.md`. Tanto los éxitos como los errores usarán `application/json` con únicamente `success`, `message`, `data` y `traceId`; los estados se comunicarán mediante HTTP y no se usará `204`.
+`ProductController` y `ReservationController` delegan las cinco operaciones al mismo `InventoryService`, conectado por Spring a la base configurada. Tanto éxitos como errores usan `application/json` con únicamente `success`, `message`, `data` y `traceId`; el estado se comunica mediante HTTP y no se usa `204`.
 
-Un `@RestControllerAdvice` centralizará la traducción de excepciones, incluyendo errores de Spring MVC y rutas inexistentes. La API devolverá mensajes aptos para clientes y conservará los detalles técnicos en logs.
+- `POST /products`: recibe `sku` y `category`; responde `201` con el producto registrado.
+- `POST /products/{sku}/stock`: recibe `quantity`; responde `200` con `data: null`.
+- `GET /products/{sku}/availability`: responde `200` con `sku` y `availableUnits`. Un SKU desconocido tiene disponibilidad cero.
+- `POST /reservations`: recibe `orderId`, `sku` y `quantity`; responde `200` tanto al crear como al reconocer un reintento, con los datos de la reserva original.
+- `POST /reservations/{orderId}/confirm`: responde `200` con `data: null`, también en confirmaciones repetidas.
 
-El `traceId` relacionará respuestas, logs y notificaciones en segundo plano. Los niveles serán `INFO` para eventos relevantes, `WARN` para fallos recuperables, `ERROR` para fallos inesperados o paso a DLQ y `DEBUG` para diagnóstico.
+Los cuerpos se validan antes de llamar al servicio: identificadores obligatorios de hasta 255 caracteres, de acuerdo con el esquema actual, categoría válida y cantidades enteras positivas. JSON inválido, campos desconocidos, cantidades decimales o números enviados como texto se rechazan con `400`.
+
+`ApiExceptionHandler` usa `@RestControllerAdvice` para manejar errores del servicio y de Spring MVC; `ApiErrorController` cubre el fallback de errores del servlet sin páginas HTML ni atributos técnicos. Excepciones internas específicas permiten distinguir conflictos del negocio de fallos inesperados, sin analizar sus mensajes.
+
+- `400`: solicitudes inválidas.
+- `404`: rutas inexistentes o reabastecimiento de un producto no registrado.
+- `409`: falta de stock, límite por pedido, producto duplicado, datos de pedido incompatibles, reservas vencidas o inexistentes al confirmar, y capacidad de stock excedida.
+- `500`: fallos inesperados, con mensaje genérico y diagnóstico completo únicamente en logs.
+- `405`, `406` y `415`: método, formato de respuesta o tipo de contenido no admitidos, también con el JSON uniforme.
+
+En errores, `data` es `null`. Nunca se copia el mensaje de una excepción al mensaje del cliente.
+
+`TraceIdFilter` genera un identificador por solicitud o acepta `X-Trace-Id` con hasta 64 caracteres alfanuméricos, puntos, guiones o guiones bajos. Lo devuelve en el encabezado y en el cuerpo, y lo mantiene en MDC durante los despachos normales y de error. Al terminar, restaura el contexto anterior.
+
+El identificador se guarda en cada aviso de H2. `StockAlertDelivery` lo recupera para la entrega inicial y los reintentos, incluso en otros hilos, restaurando después el contexto del trabajador.
+
+Usamos `INFO` para registro, reabastecimiento, reservas, confirmaciones y entrega de avisos; `WARN` para fallos recuperables; `ERROR` para fallos inesperados o paso a DLQ; y `DEBUG` para reintentos idempotentes, vencimientos preparados y diagnóstico HTTP. Los identificadores se escapan en los logs para evitar saltos de línea introducidos por entradas externas. No se registran cuerpos HTTP completos ni credenciales; el manejador global registra una sola traza por error inesperado.
+
+La aplicación local proporciona `LoggingStockAlertListener`: registra los avisos en logs como demostración. Una integración de correo puede reemplazar ese bean sin cambiar el contrato. OpenAPI, Swagger UI y Postman siguen pendientes de la tarea 16.
 
 ## Pruebas y demostración
 
