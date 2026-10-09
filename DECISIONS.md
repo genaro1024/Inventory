@@ -102,7 +102,7 @@ Durante la implementación crearemos OpenAPI, Swagger UI y una colección de Pos
 
 ### CI/CD, Docker y Kubernetes
 
-GitHub Actions ejecutará los tests con Java 21 y Maven, construirá y probará la imagen Docker y la publicará en GHCR con etiquetas de versión y commit. La publicación se ejecutará desde la rama predeterminada o etiquetas de versión, nunca desde pull requests. El despliegue a Kubernetes quedará únicamente indicado, suponiendo configuración y secretos en GitHub.
+GitHub Actions ejecutará los tests con Java 21 y Maven, construirá y probará la imagen Docker y la publicará en GHCR. Las ramas `dev`, `qa` y `main` tendrán etiquetas propias y de commit; las etiquetas de versión tendrán su identificador de release. Otras ramas y pull requests no publicarán, ni se generará `latest`. El despliegue a Kubernetes quedará únicamente indicado, suponiendo configuración y secretos en GitHub.
 
 Incluiremos un Dockerfile con construcción en varias etapas y ejecución como usuario sin privilegios, además de un `.dockerignore`. Prepararemos manifiestos de Kubernetes para el Deployment, Service, configuración, referencias a secretos, recursos y sondas de salud.
 

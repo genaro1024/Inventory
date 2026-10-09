@@ -2,7 +2,7 @@
 
 ## Alcance y estado actual
 
-GitHub Actions ejecuta las pruebas, construye la imagen, verifica Postman contra el contenedor y publica en GHCR desde la rama predeterminada o etiquetas `v*`. El despliegue a Kubernetes está únicamente indicado: no hay un job que acceda al clúster.
+GitHub Actions ejecuta las pruebas, construye la imagen, verifica Postman contra el contenedor y publica en GHCR desde las ramas `dev`, `qa` y `main` o etiquetas `v*`. El despliegue a Kubernetes está únicamente indicado: no hay un job que acceda al clúster.
 
 Esta guía describe los cambios pendientes para producción. La imagen actual sigue usando H2 en memoria, `create-drop`, un listener de avisos que escribe en logs y planificación local de reintentos. Configurar secretos y cambiar la URL no completa una migración a otra base.
 
@@ -58,7 +58,7 @@ La publicación en GHCR usa el `GITHUB_TOKEN` automático con `packages: write`.
 
 Crear `k8s/overlays/production` una vez implementada y probada la migración. Los manifiestos actuales son de demostración; no aplicarlos directamente con datos de producción.
 
-- Cambiar la imagen por `ghcr.io/genaro1024/inventory@sha256:DIGEST_REAL` de la entrega validada. No usar `latest` para producción.
+- Cambiar la imagen por `ghcr.io/genaro1024/inventory@sha256:DIGEST_REAL` de la entrega validada de `main` o de una versión aprobada. `dev` y `qa` tienen sus propias etiquetas. Para fijar una entrega sin digest puede usarse `main-sha-COMMIT_COMPLETO`; no usar las etiquetas móviles de rama para un despliegue reproducible.
 - Eliminar `DB_URL` H2 del ConfigMap productivo y obtener URL, usuario y contraseña del Secret `inventory-db`, claves `url`, `username` y `password`. La referencia `url` todavía debe agregarse al Deployment; actualmente solo usuario y contraseña vienen de Secret.
 - Mantener únicamente configuración no sensible en ConfigMap: puerto, logs, memoria y perfil `prod`.
 - Agregar `imagePullSecrets: [{name: ghcr-pull}]` para imágenes privadas, en el mismo namespace del Pod. [Imágenes privadas en Kubernetes](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/).

@@ -62,17 +62,22 @@ Si el paquete GHCR es privado, crear un Secret de tipo `kubernetes.io/dockerconf
 1. Configura Temurin 21, ejecuta `mvn clean verify` y conserva reportes Java.
 2. Si pasa, construye y carga la imagen con Buildx y caché.
 3. Prueba la imagen con filesystem de solo lectura y límites del ejemplo; comprueba sondas y usuario, y ejecuta 40 solicitudes y 142 aserciones de Postman con Newman 6.2.2. Conserva logs y reporte JUnit incluso ante fallos.
-4. Si pasa todo y la ejecución corresponde a la rama predeterminada o una etiqueta `v*`, transfiere la misma imagen probada al job de publicación y la envía a GHCR.
+4. Si pasa todo y la ejecución corresponde a `dev`, `qa`, `main` o una etiqueta `v*`, transfiere la misma imagen probada al job de publicación y la envía a GHCR.
 
 Las acciones están fijadas a commits; sus versiones mayores aparecen en comentarios. Solo el job de publicación recibe `packages: write`. Los pull requests nunca publican ni inician sesión en el registro.
 
 La publicación en **GHCR está habilitada**. No requiere `PUBLISH_IMAGE`. El workflow usa `GITHUB_TOKEN`, generado por GitHub, con `packages: write`; no necesita un PAT adicional. El paquete y la organización deben permitir escritura desde el repositorio. Si el paquete ya existe, revisar su acceso desde Actions. [Autenticación y permisos de GHCR](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry).
 
-El nombre se deriva del repositorio en minúsculas: `ghcr.io/genaro1024/inventory`. Publica desde la rama predeterminada o una etiqueta de versión:
+El nombre se deriva del repositorio en minúsculas: `ghcr.io/genaro1024/inventory`. Cada rama publica etiquetas separadas dentro de ese paquete:
 
-- `sha-<commit completo>`: identifica el commit.
-- `1.0.0`: al recibir una etiqueta SemVer `v1.0.0`; coordinarla con la versión del `pom.xml`.
-- `latest`: solo desde la rama predeterminada.
+- `dev` y `dev-sha-<commit completo>`: desarrollo.
+- `qa` y `qa-sha-<commit completo>`: pruebas de calidad.
+- `main` y `main-sha-<commit completo>`: rama principal destinada a producción.
+- `1.0.0` y `release-sha-<commit completo>`: al recibir una etiqueta SemVer `v1.0.0`; coordinarla con la versión del `pom.xml`.
+
+Por ejemplo: `ghcr.io/genaro1024/inventory:qa` o `ghcr.io/genaro1024/inventory:main-sha-COMMIT_COMPLETO`. Las etiquetas `dev`, `qa` y `main` avanzan con cada publicación de su rama. Para fijar una entrega, usar la etiqueta de commit correspondiente o el digest. El workflow no publica `latest`, para evitar mezclar ambientes aunque `dev` sea la rama predeterminada.
+
+Otras ramas y pull requests ejecutan pruebas y construcción, sin publicar imágenes. La ejecución manual respeta las mismas restricciones. La separación es por etiquetas: la configuración y los secretos del ambiente se suministran al ejecutar el contenedor, sin incluirlos en la imagen ni activar automáticamente el perfil `demo`.
 
 El prefijo `v*` activa el flujo, pero solo SemVer produce una etiqueta de versión. Usar commits o digests para despliegues reproducibles. Los artefactos intermedios de imagen duran un día; los reportes, siete días.
 
