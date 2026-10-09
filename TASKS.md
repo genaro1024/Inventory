@@ -32,8 +32,8 @@ Checklist basada en [DECISIONS.md](DECISIONS.md). Las tareas completadas se marc
 
 ## Infraestructura
 
-- [ ] **17. Preparar Docker, configuración y Kubernetes.** Crear Dockerfile de varias etapas con usuario sin privilegios, `.dockerignore` y `.env.example` documentado; excluir `.env` de Git. Incluir Deployment de una réplica, Service, ConfigMaps, referencias a Secrets, recursos y sondas de salud. Documentar la pérdida de datos al reiniciar.
-- [ ] **18. Configurar GitHub Actions.** Ejecutar tests antes de construir la imagen y preparar su publicación con etiquetas de versión y commit, variables y secretos. Verificar el flujo; el registro de destino y el despliegue automático quedan pendientes de conocer el entorno.
+- [x] **17. Preparar Docker, configuración y Kubernetes.** Crear Dockerfile de varias etapas con usuario sin privilegios, `.dockerignore` y `.env.example` documentado; excluir `.env` de Git. Incluir Deployment de una réplica, Service, ConfigMaps, referencias a Secrets, recursos y sondas de salud. Documentar la pérdida de datos al reiniciar.
+- [x] **18. Configurar GitHub Actions.** Ejecutar tests antes de construir la imagen y preparar su publicación con etiquetas de versión y commit, variables y secretos. Verificar el flujo; el registro de destino y el despliegue automático quedan pendientes de conocer el entorno.
 
 ## Pendientes antes de producción
 

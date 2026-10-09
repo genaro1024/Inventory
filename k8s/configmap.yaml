@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: inventory-config
+  labels:
+    app.kubernetes.io/name: inventory
+data:
+  SERVER_PORT: "8080"
+  SPRING_PROFILES_ACTIVE: ""
+  DB_URL: "jdbc:h2:mem:inventory;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE"
+  LOGGING_LEVEL_ROOT: "INFO"
+  JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=65.0 -XX:+ExitOnOutOfMemoryError"

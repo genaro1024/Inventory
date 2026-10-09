@@ -18,6 +18,7 @@ Requiere Java 21 y Maven 3.6.3 o posterior. Los tests de integración arrancan s
 - HTTP y mensajes seguros: `InventoryApiIntegrationTest`, `InventoryApiFailureTest` y `ApiErrorControllerTest`, incluidos `400`, `404`, `409` y `500` con solo cuatro campos.
 - Correlación: `TraceContextTest` y `AlertTracePropagationTest` verifican limpieza de MDC y propagación al trabajador de reintentos.
 - Seed y documentación: `DemoSeedTest`, `DocumentationAndDemoTest` y `PostmanContractTest`.
+- Sondas: `HealthControllerTest` comprueba arranque y cierre, indisponibilidad de H2, cierre de conexiones y respuestas uniformes sin diagnósticos.
 
 El reloj y el planificador manuales prueban vencimientos y esperas de 2 a 32 segundos sin dormir esos intervalos. Los tests de carreras usan coordinación explícita entre hilos y esperas acotadas para verificar bloqueos.
 
@@ -26,6 +27,12 @@ El reloj y el planificador manuales prueban vencimientos y esperas de 2 a 32 seg
 Ejecutar la [colección](../postman/README.md) con la API activa. Son 40 solicitudes y 142 aserciones, complementarias a JUnit. OpenAPI se exporta del servicio real y se compara automáticamente con la versión guardada.
 
 Los reportes de Maven están en `target/surefire-reports`. Los artefactos generados de OpenAPI y Newman también quedan en `target/`.
+
+## Contenedor e infraestructura
+
+La [guía de despliegue](DEPLOYMENT.md) incluye el comando para ejecutar `scripts/verify-container.sh`, el mismo script usado por CI. Verifica ambas sondas, el usuario sin privilegios y las 142 aserciones de Postman contra la imagen con filesystem de solo lectura y límites de recursos.
+
+La verificación local de las tareas 17 y 18 pasó con 236 tests Java, construcción Docker y Postman. El workflow se validó con actionlint y los tres recursos generados por Kustomize con kubeconform en modo estricto. No se aplicaron manifiestos al clúster ni se publicaron imágenes; la ejecución alojada de Actions requiere subir el workflow al repositorio.
 
 ## Límites de la verificación
 

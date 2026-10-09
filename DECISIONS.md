@@ -110,7 +110,7 @@ Con el almacenamiento actual en memoria, el despliegue de demostración usará u
 
 Incluiremos un `.env.example` documentado con variables de configuración y valores de ejemplo, sin credenciales reales. Los archivos `.env` locales quedarán fuera de Git; Kubernetes utilizará ConfigMaps y Secrets, y GitHub Actions, sus variables y secretos. Documentaremos cómo cargar las variables localmente, sin asumir que Spring Boot lee un `.env` automáticamente.
 
-Estos archivos y flujos se crearán durante la implementación; por ahora solo queda registrada la decisión.
+Implementado con sondas JSON uniformes y una réplica con estrategia `Recreate`. GitHub Actions prueba la imagen con Postman y permite publicar la misma imagen en GHCR mediante `PUBLISH_IMAGE=true`; la publicación permanece desactivada hasta adoptar ese registro. El despliegue al clúster sigue siendo manual. Ver [DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ### Pendientes antes de producción
 

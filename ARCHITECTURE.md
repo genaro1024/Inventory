@@ -150,4 +150,4 @@ La aplicación local proporciona `LoggingStockAlertListener`: registra los aviso
 - Kubernetes con una réplica, Service, ConfigMaps, referencias a Secrets, recursos y sondas de salud.
 - GitHub Actions ejecutará `mvn test` antes de construir la imagen y quedará preparado para publicarla con etiquetas de versión y commit.
 
-El registro de imágenes y el despliegue automático quedan pendientes de definir el entorno. La persistencia, retención de pedidos y entrega durable de avisos son cambios previos a producción.
+El flujo de [GitHub Actions](.github/workflows/container.yml) construye y prueba la imagen con Postman; queda preparado para GHCR mediante `PUBLISH_IMAGE=true`, desactivado por defecto. Las sondas `/health/liveness` y `/health/readiness` usan el JSON uniforme; solo readiness comprueba la base. Kubernetes usa una réplica con estrategia `Recreate`. La [guía de despliegue](docs/DEPLOYMENT.md) documenta configuración y operación. El registro definitivo y el despliegue automático quedan pendientes de definir el entorno. La persistencia, retención de pedidos y entrega durable de avisos son cambios previos a producción.

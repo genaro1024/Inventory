@@ -1,4 +1,7 @@
 target/
+.env
+.env.*
+!.env.example
 pom.xml.tag
 pom.xml.releaseBackup
 pom.xml.versionsBackup
