@@ -102,7 +102,7 @@ Durante la implementación crearemos OpenAPI, Swagger UI y una colección de Pos
 
 ### CI/CD, Docker y Kubernetes
 
-Prepararemos GitHub Actions para ejecutar los tests con Java 21 y Maven y, si pasan, construir la imagen Docker. El flujo quedará listo para publicarla en un registro de contenedores, con etiquetas que identifiquen la versión y el commit. El registro de destino y el despliegue automático se definirán al conocer el entorno.
+GitHub Actions ejecutará los tests con Java 21 y Maven, construirá y probará la imagen Docker y la publicará en GHCR con etiquetas de versión y commit. La publicación se ejecutará desde la rama predeterminada o etiquetas de versión, nunca desde pull requests. El despliegue a Kubernetes quedará únicamente indicado, suponiendo configuración y secretos en GitHub.
 
 Incluiremos un Dockerfile con construcción en varias etapas y ejecución como usuario sin privilegios, además de un `.dockerignore`. Prepararemos manifiestos de Kubernetes para el Deployment, Service, configuración, referencias a secretos, recursos y sondas de salud.
 
@@ -110,7 +110,7 @@ Con el almacenamiento actual en memoria, el despliegue de demostración usará u
 
 Incluiremos un `.env.example` documentado con variables de configuración y valores de ejemplo, sin credenciales reales. Los archivos `.env` locales quedarán fuera de Git; Kubernetes utilizará ConfigMaps y Secrets, y GitHub Actions, sus variables y secretos. Documentaremos cómo cargar las variables localmente, sin asumir que Spring Boot lee un `.env` automáticamente.
 
-Implementado con sondas JSON uniformes y una réplica con estrategia `Recreate`. GitHub Actions prueba la imagen con Postman y permite publicar la misma imagen en GHCR mediante `PUBLISH_IMAGE=true`; la publicación permanece desactivada hasta adoptar ese registro. El despliegue al clúster sigue siendo manual. Ver [DEPLOYMENT.md](docs/DEPLOYMENT.md).
+Implementado con sondas JSON uniformes y una réplica con estrategia `Recreate`. GitHub Actions prueba con Postman y publica la misma imagen en GHCR usando `GITHUB_TOKEN`. El despliegue al clúster está solo documentado; [PRODUCTION.md](docs/PRODUCTION.md) describe secretos y cambios necesarios para una base persistente. Ver [DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ### Pendientes antes de producción
 

@@ -1,4 +1,4 @@
-name: Test and build container
+name: Test, build and publish to GHCR
 
 on:
   pull_request:
@@ -72,10 +72,10 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
       - name: Export verified image for publication
-        if: vars.PUBLISH_IMAGE == 'true' && (github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || startsWith(github.ref, 'refs/tags/v')) && github.event_name != 'pull_request'
+        if: (github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || startsWith(github.ref, 'refs/tags/v')) && github.event_name != 'pull_request'
         run: docker save inventory:ci | gzip > target/inventory-image.tar.gz
       - name: Upload verified image
-        if: vars.PUBLISH_IMAGE == 'true' && (github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || startsWith(github.ref, 'refs/tags/v')) && github.event_name != 'pull_request'
+        if: (github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || startsWith(github.ref, 'refs/tags/v')) && github.event_name != 'pull_request'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: inventory-image
@@ -84,7 +84,7 @@ jobs:
 
   publish:
     needs: container
-    if: vars.PUBLISH_IMAGE == 'true' && (github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || startsWith(github.ref, 'refs/tags/v')) && github.event_name != 'pull_request'
+    if: (github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || startsWith(github.ref, 'refs/tags/v')) && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -126,3 +126,11 @@ jobs:
             docker tag inventory:ci "$tag"
             docker push "$tag"
           done <<< "$IMAGE_TAGS"
+
+  # Future Kubernetes deployment: documentation only; no executable deploy job.
+  # Add it after publish, using a protected GitHub environment named production.
+  # Expected secrets: KUBE_CONFIG_B64, DB_URL, DB_USERNAME, DB_PASSWORD.
+  # For private GHCR packages: GHCR_PULL_USERNAME and GHCR_PULL_TOKEN.
+  # Expected variables: K8S_NAMESPACE, K8S_CONTEXT, K8S_DEPLOYMENT, K8S_OVERLAY.
+  # Deploy the published image by digest after database migrations are validated.
+  # Procedure and remaining application changes: docs/PRODUCTION.md.

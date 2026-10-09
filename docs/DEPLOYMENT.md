@@ -62,11 +62,11 @@ Si el paquete GHCR es privado, crear un Secret de tipo `kubernetes.io/dockerconf
 1. Configura Temurin 21, ejecuta `mvn clean verify` y conserva reportes Java.
 2. Si pasa, construye y carga la imagen con Buildx y caché.
 3. Prueba la imagen con filesystem de solo lectura y límites del ejemplo; comprueba sondas y usuario, y ejecuta 40 solicitudes y 142 aserciones de Postman con Newman 6.2.2. Conserva logs y reporte JUnit incluso ante fallos.
-4. Solo si se habilita publicación y pasa todo, transfiere la misma imagen probada al job de publicación y la envía a GHCR.
+4. Si pasa todo y la ejecución corresponde a la rama predeterminada o una etiqueta `v*`, transfiere la misma imagen probada al job de publicación y la envía a GHCR.
 
 Las acciones están fijadas a commits; sus versiones mayores aparecen en comentarios. Solo el job de publicación recibe `packages: write`. Los pull requests nunca publican ni inician sesión en el registro.
 
-La publicación está **desactivada por defecto**, porque el registro definitivo quedó pendiente. Para adoptar GHCR, crear la variable del repositorio `PUBLISH_IMAGE=true` en **Settings → Secrets and variables → Actions → Variables**. El workflow usa `GITHUB_TOKEN`, generado por GitHub; no requiere un PAT adicional. El paquete y la organización deben permitir escritura desde el repositorio.
+La publicación en **GHCR está habilitada**. No requiere `PUBLISH_IMAGE`. El workflow usa `GITHUB_TOKEN`, generado por GitHub, con `packages: write`; no necesita un PAT adicional. El paquete y la organización deben permitir escritura desde el repositorio. Si el paquete ya existe, revisar su acceso desde Actions. [Autenticación y permisos de GHCR](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry).
 
 El nombre se deriva del repositorio en minúsculas: `ghcr.io/genaro1024/inventory`. Publica desde la rama predeterminada o una etiqueta de versión:
 
@@ -76,7 +76,7 @@ El nombre se deriva del repositorio en minúsculas: `ghcr.io/genaro1024/inventor
 
 El prefijo `v*` activa el flujo, pero solo SemVer produce una etiqueta de versión. Usar commits o digests para despliegues reproducibles. Los artefactos intermedios de imagen duran un día; los reportes, siete días.
 
-La entrega automatizada termina en el registro. El despliegue continuo depende del entorno, acceso al clúster y aprobaciones; el workflow no accede a Kubernetes. Subirlo a GitHub es necesario para verificar la ejecución alojada y los permisos del registro.
+La entrega automatizada termina en GHCR. El despliegue a Kubernetes queda únicamente indicado en comentarios del workflow y en [PRODUCTION.md](PRODUCTION.md), con secretos y variables previstos de GitHub. No hay un job de despliegue activo. Subir el workflow a GitHub es necesario para verificar la ejecución alojada y los permisos del registro.
 
 ## Verificación local
 

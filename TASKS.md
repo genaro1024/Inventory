@@ -33,11 +33,11 @@ Checklist basada en [DECISIONS.md](DECISIONS.md). Las tareas completadas se marc
 ## Infraestructura
 
 - [x] **17. Preparar Docker, configuración y Kubernetes.** Crear Dockerfile de varias etapas con usuario sin privilegios, `.dockerignore` y `.env.example` documentado; excluir `.env` de Git. Incluir Deployment de una réplica, Service, ConfigMaps, referencias a Secrets, recursos y sondas de salud. Documentar la pérdida de datos al reiniciar.
-- [x] **18. Configurar GitHub Actions.** Ejecutar tests antes de construir la imagen y preparar su publicación con etiquetas de versión y commit, variables y secretos. Verificar el flujo; el registro de destino y el despliegue automático quedan pendientes de conocer el entorno.
+- [x] **18. Configurar GitHub Actions.** Ejecutar tests, construir y probar la imagen y publicarla en GHCR con etiquetas de versión y commit. Dejar el despliegue a Kubernetes únicamente indicado, con guía de base persistente, variables y secretos previstos para producción.
 
 ## Pendientes antes de producción
 
 - Validar con el equipo la confirmación idempotente, cuya interpretación difiere de la lectura literal del contrato.
 - Migrar de H2 en memoria a una base persistente con migraciones de esquema, retención de pedidos y atomicidad y unicidad entre instancias.
 - Mantener avisos y DLQ en una base persistente, deduplicar entregas en el receptor y definir monitoreo y recuperación de entregas interrumpidas.
-- Definir el registro y el entorno de despliegue antes de habilitar publicación o despliegue efectivos.
+- Definir el entorno Kubernetes y completar los requisitos de [PRODUCTION.md](docs/PRODUCTION.md) antes de habilitar el despliegue automático. GHCR es el registro de imágenes elegido.

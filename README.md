@@ -72,7 +72,7 @@ La API HTTP usa el mismo servicio con la base configurada por Spring. La seed nu
 
 Actualmente el esquema se crea y elimina al iniciar y cerrar. Una base persistente necesita migraciones y verificación con el motor elegido, no solo cambiar la URL. H2 en memoria no comparte datos entre procesos.
 
-Docker, Kubernetes, `.env.example` y GitHub Actions están preparados. La [guía de despliegue](docs/DEPLOYMENT.md) explica configuración, sondas, ejecución local y publicación opcional en GHCR. Kubernetes usa una réplica con estrategia `Recreate`; el pipeline prueba Java y Postman sobre la imagen antes de permitir publicarla. La publicación permanece desactivada hasta definir el registro.
+Docker, Kubernetes, `.env.example` y GitHub Actions están preparados. La [guía de despliegue](docs/DEPLOYMENT.md) explica configuración, sondas y ejecución local. El pipeline prueba Java y Postman y publica la imagen en GHCR desde la rama predeterminada o etiquetas de versión. Kubernetes usa una réplica con estrategia `Recreate`; su despliegue queda únicamente documentado. La [guía de producción](docs/PRODUCTION.md) detalla la migración a una base persistente y los secretos previstos para un futuro despliegue.
 
 ## Documentación del proyecto
 
@@ -81,3 +81,4 @@ Docker, Kubernetes, `.env.example` y GitHub Actions están preparados. La [guía
 - [BUSINESS_RULES.md](BUSINESS_RULES.md): reglas identificadas con prefijo BR.
 - [TASKS.md](TASKS.md): avance de implementación y pendientes de producción.
 - [DEPLOYMENT.md](docs/DEPLOYMENT.md): Docker, Kubernetes, variables y pipeline.
+- [PRODUCTION.md](docs/PRODUCTION.md): base persistente, secretos y despliegue productivo en Kubernetes.
